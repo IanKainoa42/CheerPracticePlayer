@@ -6,6 +6,7 @@ struct PracticeBuilderView: View {
 
     @State private var isImportingMix = false
     @State private var importErrorMessage: String?
+    @State private var waveformSamples: [Float] = []
 
     var body: some View {
         NavigationStack {
@@ -41,6 +42,22 @@ struct PracticeBuilderView: View {
             } message: {
                 Text(importErrorMessage ?? "Unknown import error")
             }
+            .task(id: session.mix?.id) {
+                await loadWaveform()
+            }
+        }
+    }
+
+    private func loadWaveform() async {
+        guard let path = session.mix?.localPath else {
+            waveformSamples = []
+            return
+        }
+        let url = URL(fileURLWithPath: path)
+        do {
+            waveformSamples = try await WaveformExtractor.extractSamples(from: url)
+        } catch {
+            waveformSamples = []
         }
     }
 
@@ -79,6 +96,7 @@ struct PracticeBuilderView: View {
                 SectionEditorCard(
                     section: section,
                     maxDuration: max(session.mixDuration, 1),
+                    waveformSamples: waveformSamples,
                     onChange: { updated in
                         session.upsertSection(updated)
                     },
@@ -169,6 +187,7 @@ struct PracticeBuilderView: View {
 private struct SectionEditorCard: View {
     let section: PracticeSection
     let maxDuration: TimeInterval
+    let waveformSamples: [Float]
     let onChange: (PracticeSection) -> Void
     let onDelete: () -> Void
     let onAddBlock: () -> Void
@@ -205,37 +224,59 @@ private struct SectionEditorCard: View {
             }
             .pickerStyle(.menu)
 
-            VStack(alignment: .leading, spacing: 8) {
-                LabeledContent("Start", value: Formatters.clock(section.startTime))
-                Slider(
-                    value: Binding(
+            if waveformSamples.isEmpty {
+                // Fallback sliders when no audio loaded
+                VStack(alignment: .leading, spacing: 8) {
+                    LabeledContent("Start", value: Formatters.clock(section.startTime))
+                    Slider(
+                        value: Binding(
+                            get: { section.startTime },
+                            set: { newValue in
+                                var updated = section
+                                updated.startTime = min(newValue, updated.endTime)
+                                onChange(updated)
+                            }
+                        ),
+                        in: 0...maxDuration
+                    )
+
+                    LabeledContent("End", value: Formatters.clock(section.endTime))
+                    Slider(
+                        value: Binding(
+                            get: { section.endTime },
+                            set: { newValue in
+                                var updated = section
+                                updated.endTime = max(newValue, updated.startTime)
+                                onChange(updated)
+                            }
+                        ),
+                        in: 0...maxDuration
+                    )
+                }
+            } else {
+                WaveformTrimmerView(
+                    samples: waveformSamples,
+                    duration: maxDuration,
+                    startTime: Binding(
                         get: { section.startTime },
                         set: { newValue in
                             var updated = section
-                            updated.startTime = min(newValue, updated.endTime)
+                            updated.startTime = newValue
                             onChange(updated)
                         }
                     ),
-                    in: 0...maxDuration
-                )
-
-                LabeledContent("End", value: Formatters.clock(section.endTime))
-                Slider(
-                    value: Binding(
+                    endTime: Binding(
                         get: { section.endTime },
                         set: { newValue in
                             var updated = section
-                            updated.endTime = max(newValue, updated.startTime)
+                            updated.endTime = newValue
                             onChange(updated)
                         }
-                    ),
-                    in: 0...maxDuration
+                    )
                 )
-            }
 
-            Text("Duration: \(Formatters.clock(section.duration))")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                TrimTimeLabelsView(startTime: section.startTime, endTime: section.endTime)
+            }
 
             HStack {
                 Button {

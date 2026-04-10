@@ -14,8 +14,10 @@
 		6AF5720DE0FD809FCA3B6593 /* CheerPracticePlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654CAB8C7B1F7B8FB859A286 /* CheerPracticePlayerTests.swift */; };
 		6EF3D27C73C0873074FA9B42 /* ImportedMix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C074127F8658A5BC4C42B93 /* ImportedMix.swift */; };
 		8753D76F65279BC78DD4A55C /* SessionRunnerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */; };
+		8F075A2DE5F59BCE017AD468 /* WaveformTrimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1226C6961B0BAB489F276A3D /* WaveformTrimmerView.swift */; };
 		A34A7921BB84EC90F7B33342 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 418B39F18B5C0D83BC956730 /* RootTabView.swift */; };
 		AB4532ECACDF19E47711E7D4 /* LiveSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A5CE6041A6355AF0426713C /* LiveSessionController.swift */; };
+		B4B2A07012F3FFA8AE349FA0 /* WaveformExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52A2AE00ED41F244C111F519 /* WaveformExtractor.swift */; };
 		BE7E2BAB9EA8EC39826956B9 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCFB608633621584EA24219 /* Formatters.swift */; };
 		E3DCEE91AEBDC7EB7BE3B224 /* LiveRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053A525D2F0C9C7FFE43A2C8 /* LiveRunView.swift */; };
 		E5CE9235824E933E935E3587 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84F6E7CD4B0FA0BF0DC9FB /* HomeView.swift */; };
@@ -39,11 +41,13 @@
 		0A5CE6041A6355AF0426713C /* LiveSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionController.swift; sourceTree = "<group>"; };
 		0BCFB608633621584EA24219 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 		0C074127F8658A5BC4C42B93 /* ImportedMix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedMix.swift; sourceTree = "<group>"; };
+		1226C6961B0BAB489F276A3D /* WaveformTrimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformTrimmerView.swift; sourceTree = "<group>"; };
 		19B20AC760AB8967A89C74BC /* PracticeSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeSection.swift; sourceTree = "<group>"; };
 		2F7C05A8E355F5B03408638D /* PracticeBuilderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeBuilderView.swift; sourceTree = "<group>"; };
 		35B90EC5011A5D04AE2D2ED7 /* CheerPracticePlayerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CheerPracticePlayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		418B39F18B5C0D83BC956730 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		4B84F6E7CD4B0FA0BF0DC9FB /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		52A2AE00ED41F244C111F519 /* WaveformExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformExtractor.swift; sourceTree = "<group>"; };
 		654CAB8C7B1F7B8FB859A286 /* CheerPracticePlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheerPracticePlayerTests.swift; sourceTree = "<group>"; };
 		7DF7C21BECD3ADE1C733FCD0 /* CheerPracticePlayerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheerPracticePlayerApp.swift; sourceTree = "<group>"; };
 		BD76AC732608552E7F9F6074 /* PrototypeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeSession.swift; sourceTree = "<group>"; };
@@ -146,6 +150,7 @@
 			isa = PBXGroup;
 			children = (
 				2F7C05A8E355F5B03408638D /* PracticeBuilderView.swift */,
+				1226C6961B0BAB489F276A3D /* WaveformTrimmerView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -178,6 +183,7 @@
 				0BCFB608633621584EA24219 /* Formatters.swift */,
 				0A5CE6041A6355AF0426713C /* LiveSessionController.swift */,
 				CAA758339B66DB75E2A13597 /* MixImportService.swift */,
+				52A2AE00ED41F244C111F519 /* WaveformExtractor.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -273,6 +279,8 @@
 				52BF0E6B4592CC99ADB522C3 /* PrototypeSession.swift in Sources */,
 				A34A7921BB84EC90F7B33342 /* RootTabView.swift in Sources */,
 				8753D76F65279BC78DD4A55C /* SessionRunnerState.swift in Sources */,
+				B4B2A07012F3FFA8AE349FA0 /* WaveformExtractor.swift in Sources */,
+				8F075A2DE5F59BCE017AD468 /* WaveformTrimmerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
