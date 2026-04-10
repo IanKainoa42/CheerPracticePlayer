@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PracticeBuilderView: View {
     @Binding var session: PrototypeSession
-    @Binding var runner: SessionRunnerState
+    let onResetRun: () -> Void
 
     @State private var isImportingMix = false
     @State private var importErrorMessage: String?
@@ -22,7 +22,7 @@ struct PracticeBuilderView: View {
                     }
 
                     Button("Reset Run") {
-                        runner = SessionRunnerState(template: session)
+                        onResetRun()
                     }
                 }
             }
@@ -156,7 +156,6 @@ struct PracticeBuilderView: View {
                     if session.sections.isEmpty {
                         session.addSection(PracticeSection.blank(totalDuration: importedMix.duration))
                     }
-                    runner.syncTemplate(session)
                 }
             } catch {
                 await MainActor.run {

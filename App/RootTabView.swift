@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RootTabView: View {
     @Binding var session: PrototypeSession
-    @Binding var runner: SessionRunnerState
+    let controller: LiveSessionController
 
     var body: some View {
         TabView {
@@ -11,18 +11,23 @@ struct RootTabView: View {
                     Label("Home", systemImage: "house")
                 }
 
-            PracticeBuilderView(session: $session, runner: $runner)
-                .tabItem {
-                    Label("Builder", systemImage: "slider.horizontal.3")
-                }
+            PracticeBuilderView(session: $session) {
+                controller.syncSession(session)
+            }
+            .tabItem {
+                Label("Builder", systemImage: "slider.horizontal.3")
+            }
 
-            LiveRunView(session: session, runner: $runner)
+            LiveRunView(controller: controller)
                 .tabItem {
                     Label("Run", systemImage: "play.circle")
                 }
         }
+        .onAppear {
+            controller.syncSession(session)
+        }
         .onChange(of: session) { _, newValue in
-            runner.syncTemplate(newValue)
+            controller.syncSession(newValue)
         }
     }
 }

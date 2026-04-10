@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1B5E44BB86D2E199E1B60001 /* AudioPlaybackEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42671E80E6800CE0C4253AB /* AudioPlaybackEngine.swift */; };
 		2257A5965E58BC146AFB7717 /* PracticeSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B20AC760AB8967A89C74BC /* PracticeSection.swift */; };
 		432B4CFF09F214C3C89334FA /* PracticeBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7C05A8E355F5B03408638D /* PracticeBuilderView.swift */; };
 		52BF0E6B4592CC99ADB522C3 /* PrototypeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD76AC732608552E7F9F6074 /* PrototypeSession.swift */; };
@@ -14,6 +15,7 @@
 		6EF3D27C73C0873074FA9B42 /* ImportedMix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C074127F8658A5BC4C42B93 /* ImportedMix.swift */; };
 		8753D76F65279BC78DD4A55C /* SessionRunnerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */; };
 		A34A7921BB84EC90F7B33342 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 418B39F18B5C0D83BC956730 /* RootTabView.swift */; };
+		AB4532ECACDF19E47711E7D4 /* LiveSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A5CE6041A6355AF0426713C /* LiveSessionController.swift */; };
 		BE7E2BAB9EA8EC39826956B9 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCFB608633621584EA24219 /* Formatters.swift */; };
 		E3DCEE91AEBDC7EB7BE3B224 /* LiveRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053A525D2F0C9C7FFE43A2C8 /* LiveRunView.swift */; };
 		E5CE9235824E933E935E3587 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84F6E7CD4B0FA0BF0DC9FB /* HomeView.swift */; };
@@ -34,6 +36,7 @@
 
 /* Begin PBXFileReference section */
 		053A525D2F0C9C7FFE43A2C8 /* LiveRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRunView.swift; sourceTree = "<group>"; };
+		0A5CE6041A6355AF0426713C /* LiveSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionController.swift; sourceTree = "<group>"; };
 		0BCFB608633621584EA24219 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 		0C074127F8658A5BC4C42B93 /* ImportedMix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedMix.swift; sourceTree = "<group>"; };
 		19B20AC760AB8967A89C74BC /* PracticeSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeSection.swift; sourceTree = "<group>"; };
@@ -44,6 +47,7 @@
 		654CAB8C7B1F7B8FB859A286 /* CheerPracticePlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheerPracticePlayerTests.swift; sourceTree = "<group>"; };
 		7DF7C21BECD3ADE1C733FCD0 /* CheerPracticePlayerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheerPracticePlayerApp.swift; sourceTree = "<group>"; };
 		BD76AC732608552E7F9F6074 /* PrototypeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeSession.swift; sourceTree = "<group>"; };
+		C42671E80E6800CE0C4253AB /* AudioPlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackEngine.swift; sourceTree = "<group>"; };
 		CAA758339B66DB75E2A13597 /* MixImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixImportService.swift; sourceTree = "<group>"; };
 		CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRunnerState.swift; sourceTree = "<group>"; };
 		D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CheerPracticePlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -170,7 +174,9 @@
 		D0BCDD02B4CB30CC11486869 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				C42671E80E6800CE0C4253AB /* AudioPlaybackEngine.swift */,
 				0BCFB608633621584EA24219 /* Formatters.swift */,
+				0A5CE6041A6355AF0426713C /* LiveSessionController.swift */,
 				CAA758339B66DB75E2A13597 /* MixImportService.swift */,
 			);
 			path = Shared;
@@ -253,11 +259,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1B5E44BB86D2E199E1B60001 /* AudioPlaybackEngine.swift in Sources */,
 				F881F426BFA5491D585CF8DC /* CheerPracticePlayerApp.swift in Sources */,
 				BE7E2BAB9EA8EC39826956B9 /* Formatters.swift in Sources */,
 				E5CE9235824E933E935E3587 /* HomeView.swift in Sources */,
 				6EF3D27C73C0873074FA9B42 /* ImportedMix.swift in Sources */,
 				E3DCEE91AEBDC7EB7BE3B224 /* LiveRunView.swift in Sources */,
+				AB4532ECACDF19E47711E7D4 /* LiveSessionController.swift in Sources */,
 				F4D80F307FD07CB34F431C66 /* MixImportService.swift in Sources */,
 				ED28BC7F2FCCC96886D7AD03 /* PracticeBlock.swift in Sources */,
 				432B4CFF09F214C3C89334FA /* PracticeBuilderView.swift in Sources */,

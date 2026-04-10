@@ -1,7 +1,51 @@
 import XCTest
 @testable import CheerPracticePlayer
 
+@MainActor
 final class CheerPracticePlayerTests: XCTestCase {
+    func testLiveSessionControllerPlayCurrentBlock_StartsAudioAtSectionStart() {
+        let audioPlayer = FakeAudioPlayer()
+        let controller = LiveSessionController(
+            session: PrototypeSession.sample,
+            audioPlayer: audioPlayer
+        )
+
+        controller.playCurrentBlock()
+
+        XCTAssertEqual(audioPlayer.loadedURL?.path, PrototypeSession.sample.mix?.localPath)
+        XCTAssertEqual(audioPlayer.seekTimes, [PrototypeSession.sample.blocks[0].section.startTime])
+        XCTAssertEqual(audioPlayer.playCallCount, 1)
+        XCTAssertEqual(controller.runner.phase, .playing)
+    }
+
+    func testLiveSessionControllerRestartBlock_SeeksAndPlaysCurrentSection() {
+        let audioPlayer = FakeAudioPlayer()
+        let controller = LiveSessionController(
+            session: PrototypeSession.sample,
+            audioPlayer: audioPlayer
+        )
+
+        controller.restartBlock()
+
+        XCTAssertEqual(audioPlayer.seekTimes, [PrototypeSession.sample.blocks[0].section.startTime])
+        XCTAssertEqual(audioPlayer.playCallCount, 1)
+        XCTAssertEqual(controller.runner.currentRep, 1)
+    }
+
+    func testLiveSessionControllerSkipBlock_AdvancesAndPlaysNextSection() {
+        let audioPlayer = FakeAudioPlayer()
+        let controller = LiveSessionController(
+            session: PrototypeSession.sample,
+            audioPlayer: audioPlayer
+        )
+
+        controller.skipBlock()
+
+        XCTAssertEqual(controller.runner.currentBlockIndex, 1)
+        XCTAssertEqual(audioPlayer.seekTimes, [PrototypeSession.sample.blocks[1].section.startTime])
+        XCTAssertEqual(audioPlayer.playCallCount, 1)
+    }
+
     func testSectionClampedToMixDuration_KeepsRangeValid() {
         let section = PracticeSection(
             id: UUID(),
@@ -92,5 +136,25 @@ final class CheerPracticePlayerTests: XCTestCase {
         runner.skipBlock()
 
         XCTAssertEqual(runner.phase, .complete)
+    }
+}
+
+private final class FakeAudioPlayer: AudioPlaybackControlling {
+    var loadedURL: URL?
+    var seekTimes: [TimeInterval] = []
+    var playCallCount = 0
+    var pauseCallCount = 0
+
+    func load(url: URL) throws {
+        loadedURL = url
+    }
+
+    func playSegment(startTime: TimeInterval, endTime: TimeInterval) {
+        seekTimes.append(startTime)
+        playCallCount += 1
+    }
+
+    func pause() {
+        pauseCallCount += 1
     }
 }

@@ -1,13 +1,12 @@
 import SwiftUI
 
 struct LiveRunView: View {
-    let session: PrototypeSession
-    @Binding var runner: SessionRunnerState
+    @Bindable var controller: LiveSessionController
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                if let block = runner.currentBlock {
+                if let block = controller.runner.currentBlock {
                     VStack(spacing: 8) {
                         Text(block.title)
                             .font(.largeTitle.bold())
@@ -17,7 +16,7 @@ struct LiveRunView: View {
                             .font(.title3)
                             .foregroundStyle(.secondary)
 
-                        Text("Rep \(max(runner.currentRep, 1)) of \(block.reps)")
+                        Text("Rep \(max(controller.runner.currentRep, 1)) of \(block.reps)")
                             .font(.headline)
                     }
                     .frame(maxWidth: .infinity)
@@ -28,30 +27,39 @@ struct LiveRunView: View {
                     VStack(spacing: 12) {
                         Label(phaseLabel, systemImage: phaseIcon)
                             .font(.title2.weight(.semibold))
+                        Text(controller.audioStatus)
+                            .foregroundStyle(.secondary)
                         Text("Metronome: \(block.metronomeEnabled ? "On" : "Off")")
+                            .foregroundStyle(.secondary)
+                        Text("Section: \(Formatters.clock(block.section.startTime)) – \(Formatters.clock(block.section.endTime))")
                             .foregroundStyle(.secondary)
                         Text("Block time: \(Formatters.clock(block.estimatedDuration))")
                             .foregroundStyle(.secondary)
                     }
 
                     VStack(spacing: 14) {
-                        Button("Start / Advance") {
-                            runner.advance()
+                        Button("Play Section") {
+                            controller.playCurrentBlock()
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
 
+                        Button("Pause") {
+                            controller.pausePlayback()
+                        }
+                        .buttonStyle(.bordered)
+
                         HStack(spacing: 12) {
-                            Button("Break") { runner.beginBreak() }
+                            Button("Break") { controller.beginBreak() }
                                 .buttonStyle(.bordered)
-                            Button("Lead-In") { runner.beginLeadIn() }
+                            Button("Lead-In") { controller.beginLeadIn() }
                                 .buttonStyle(.bordered)
                         }
 
                         HStack(spacing: 12) {
-                            Button("Restart Block") { runner.restartBlock() }
+                            Button("Restart Block") { controller.restartBlock() }
                                 .buttonStyle(.bordered)
-                            Button("Skip Block") { runner.skipBlock() }
+                            Button("Skip Block") { controller.skipBlock() }
                                 .buttonStyle(.bordered)
                         }
                     }
@@ -67,7 +75,7 @@ struct LiveRunView: View {
     }
 
     private var phaseLabel: String {
-        switch runner.phase {
+        switch controller.runner.phase {
         case .idle:
             return "Ready"
         case .playing:
@@ -82,7 +90,7 @@ struct LiveRunView: View {
     }
 
     private var phaseIcon: String {
-        switch runner.phase {
+        switch controller.runner.phase {
         case .idle: return "pause.circle"
         case .playing: return "play.circle.fill"
         case .breakCountdown: return "timer"
