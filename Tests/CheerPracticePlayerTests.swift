@@ -2,6 +2,46 @@ import XCTest
 @testable import CheerPracticePlayer
 
 final class CheerPracticePlayerTests: XCTestCase {
+    func testSectionClampedToMixDuration_KeepsRangeValid() {
+        let section = PracticeSection(
+            id: UUID(),
+            name: "Dance",
+            type: .dance,
+            startTime: -12,
+            endTime: 250
+        )
+
+        let clamped = section.clamped(to: 120)
+
+        XCTAssertEqual(clamped.startTime, 0, accuracy: 0.001)
+        XCTAssertEqual(clamped.endTime, 120, accuracy: 0.001)
+    }
+
+    func testSessionUpsertSection_UpdatesSectionLibraryAndExistingBlocks() {
+        var session = PrototypeSession.sample
+        var updatedSection = session.sections[0]
+        updatedSection.name = "Updated Tumble"
+        updatedSection.startTime = 80
+        updatedSection.endTime = 104
+
+        session.upsertSection(updatedSection)
+
+        XCTAssertEqual(session.sections[0].name, "Updated Tumble")
+        XCTAssertEqual(session.blocks[0].section.name, "Updated Tumble")
+        XCTAssertEqual(session.blocks[0].section.startTime, 80, accuracy: 0.001)
+        XCTAssertEqual(session.blocks[0].section.endTime, 104, accuracy: 0.001)
+    }
+
+    func testSessionRemoveSection_RemovesDependentBlocks() {
+        var session = PrototypeSession.sample
+        let removedID = session.sections[1].id
+
+        session.removeSection(id: removedID)
+
+        XCTAssertFalse(session.sections.contains(where: { $0.id == removedID }))
+        XCTAssertFalse(session.blocks.contains(where: { $0.section.id == removedID }))
+    }
+
     func testBlockEstimatedDuration_IncludesRepsRestAndLeadIn() {
         let section = PracticeSection(
             id: UUID(),
