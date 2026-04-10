@@ -1,0 +1,514 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2257A5965E58BC146AFB7717 /* PracticeSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19B20AC760AB8967A89C74BC /* PracticeSection.swift */; };
+		432B4CFF09F214C3C89334FA /* PracticeBuilderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F7C05A8E355F5B03408638D /* PracticeBuilderView.swift */; };
+		52BF0E6B4592CC99ADB522C3 /* PrototypeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD76AC732608552E7F9F6074 /* PrototypeSession.swift */; };
+		6AF5720DE0FD809FCA3B6593 /* CheerPracticePlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654CAB8C7B1F7B8FB859A286 /* CheerPracticePlayerTests.swift */; };
+		8753D76F65279BC78DD4A55C /* SessionRunnerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */; };
+		A34A7921BB84EC90F7B33342 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 418B39F18B5C0D83BC956730 /* RootTabView.swift */; };
+		BE7E2BAB9EA8EC39826956B9 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCFB608633621584EA24219 /* Formatters.swift */; };
+		E3DCEE91AEBDC7EB7BE3B224 /* LiveRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053A525D2F0C9C7FFE43A2C8 /* LiveRunView.swift */; };
+		E5CE9235824E933E935E3587 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84F6E7CD4B0FA0BF0DC9FB /* HomeView.swift */; };
+		ED28BC7F2FCCC96886D7AD03 /* PracticeBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA72736FC9BD6A807137BF1E /* PracticeBlock.swift */; };
+		F881F426BFA5491D585CF8DC /* CheerPracticePlayerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF7C21BECD3ADE1C733FCD0 /* CheerPracticePlayerApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BD943244A6C7B594BBAB1486 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C46450A5F7D5FF4209E51ACA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB49A02AD125B86C0BF2654F;
+			remoteInfo = CheerPracticePlayer;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		053A525D2F0C9C7FFE43A2C8 /* LiveRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRunView.swift; sourceTree = "<group>"; };
+		0BCFB608633621584EA24219 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
+		19B20AC760AB8967A89C74BC /* PracticeSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeSection.swift; sourceTree = "<group>"; };
+		2F7C05A8E355F5B03408638D /* PracticeBuilderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeBuilderView.swift; sourceTree = "<group>"; };
+		35B90EC5011A5D04AE2D2ED7 /* CheerPracticePlayerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CheerPracticePlayerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		418B39F18B5C0D83BC956730 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		4B84F6E7CD4B0FA0BF0DC9FB /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		654CAB8C7B1F7B8FB859A286 /* CheerPracticePlayerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheerPracticePlayerTests.swift; sourceTree = "<group>"; };
+		7DF7C21BECD3ADE1C733FCD0 /* CheerPracticePlayerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheerPracticePlayerApp.swift; sourceTree = "<group>"; };
+		BD76AC732608552E7F9F6074 /* PrototypeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeSession.swift; sourceTree = "<group>"; };
+		CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRunnerState.swift; sourceTree = "<group>"; };
+		D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CheerPracticePlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EA72736FC9BD6A807137BF1E /* PracticeBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeBlock.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		02E460247831133A80738597 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */,
+				35B90EC5011A5D04AE2D2ED7 /* CheerPracticePlayerTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		133BFE3EFE9B53B1A90A0837 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				7DF7C21BECD3ADE1C733FCD0 /* CheerPracticePlayerApp.swift */,
+				418B39F18B5C0D83BC956730 /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		163FE87A5F3FDEAE8FE74DE4 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				EA72736FC9BD6A807137BF1E /* PracticeBlock.swift */,
+				19B20AC760AB8967A89C74BC /* PracticeSection.swift */,
+				BD76AC732608552E7F9F6074 /* PrototypeSession.swift */,
+				CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		3FEAF0910700E582582AC383 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		453B320A7BCD199B6543C151 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				7C0F096E720318717B317925 /* Builder */,
+				71494624DE04CB5A318923F2 /* Home */,
+				712D9706036781877CCD35E4 /* RunMode */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		6E37A62D479FCEAF40745484 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				4B84F6E7CD4B0FA0BF0DC9FB /* HomeView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		712D9706036781877CCD35E4 /* RunMode */ = {
+			isa = PBXGroup;
+			children = (
+				A78AB8473572AEB879E58A66 /* Views */,
+			);
+			path = RunMode;
+			sourceTree = "<group>";
+		};
+		71494624DE04CB5A318923F2 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				6E37A62D479FCEAF40745484 /* Views */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		73988BB663068DB0948815A9 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				654CAB8C7B1F7B8FB859A286 /* CheerPracticePlayerTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		7C0F096E720318717B317925 /* Builder */ = {
+			isa = PBXGroup;
+			children = (
+				9B2D56C21CDC0182F0B7AB13 /* Views */,
+			);
+			path = Builder;
+			sourceTree = "<group>";
+		};
+		9B2D56C21CDC0182F0B7AB13 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				2F7C05A8E355F5B03408638D /* PracticeBuilderView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		9FCFAE989AF65E8530DF6DD0 = {
+			isa = PBXGroup;
+			children = (
+				133BFE3EFE9B53B1A90A0837 /* App */,
+				453B320A7BCD199B6543C151 /* Features */,
+				163FE87A5F3FDEAE8FE74DE4 /* Models */,
+				3FEAF0910700E582582AC383 /* Resources */,
+				D0BCDD02B4CB30CC11486869 /* Shared */,
+				73988BB663068DB0948815A9 /* Tests */,
+				02E460247831133A80738597 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A78AB8473572AEB879E58A66 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				053A525D2F0C9C7FFE43A2C8 /* LiveRunView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D0BCDD02B4CB30CC11486869 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				0BCFB608633621584EA24219 /* Formatters.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2B632A390AF2E51F993BEBB3 /* CheerPracticePlayerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0BDA6A40E3135588AC7D7797 /* Build configuration list for PBXNativeTarget "CheerPracticePlayerTests" */;
+			buildPhases = (
+				EC3DF652C395C074091FDF93 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				532E224C02B399E1DF9F01A7 /* PBXTargetDependency */,
+			);
+			name = CheerPracticePlayerTests;
+			packageProductDependencies = (
+			);
+			productName = CheerPracticePlayerTests;
+			productReference = 35B90EC5011A5D04AE2D2ED7 /* CheerPracticePlayerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		BB49A02AD125B86C0BF2654F /* CheerPracticePlayer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0BA360EB092D15A975FACFD2 /* Build configuration list for PBXNativeTarget "CheerPracticePlayer" */;
+			buildPhases = (
+				D88B4C2136E522D59F8FF2E5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CheerPracticePlayer;
+			packageProductDependencies = (
+			);
+			productName = CheerPracticePlayer;
+			productReference = D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C46450A5F7D5FF4209E51ACA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					BB49A02AD125B86C0BF2654F = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 854259FA8261B32C9033C0BE /* Build configuration list for PBXProject "CheerPracticePlayer" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9FCFAE989AF65E8530DF6DD0;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 02E460247831133A80738597 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BB49A02AD125B86C0BF2654F /* CheerPracticePlayer */,
+				2B632A390AF2E51F993BEBB3 /* CheerPracticePlayerTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D88B4C2136E522D59F8FF2E5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F881F426BFA5491D585CF8DC /* CheerPracticePlayerApp.swift in Sources */,
+				BE7E2BAB9EA8EC39826956B9 /* Formatters.swift in Sources */,
+				E5CE9235824E933E935E3587 /* HomeView.swift in Sources */,
+				E3DCEE91AEBDC7EB7BE3B224 /* LiveRunView.swift in Sources */,
+				ED28BC7F2FCCC96886D7AD03 /* PracticeBlock.swift in Sources */,
+				432B4CFF09F214C3C89334FA /* PracticeBuilderView.swift in Sources */,
+				2257A5965E58BC146AFB7717 /* PracticeSection.swift in Sources */,
+				52BF0E6B4592CC99ADB522C3 /* PrototypeSession.swift in Sources */,
+				A34A7921BB84EC90F7B33342 /* RootTabView.swift in Sources */,
+				8753D76F65279BC78DD4A55C /* SessionRunnerState.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EC3DF652C395C074091FDF93 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6AF5720DE0FD809FCA3B6593 /* CheerPracticePlayerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		532E224C02B399E1DF9F01A7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BB49A02AD125B86C0BF2654F /* CheerPracticePlayer */;
+			targetProxy = BD943244A6C7B594BBAB1486 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		21292EAA730E1B2E11B5D251 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayerTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CheerPracticePlayer.app/CheerPracticePlayer";
+			};
+			name = Release;
+		};
+		2E5D8BC093E454651EA864AC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayer;
+				PRODUCT_NAME = CheerPracticePlayer;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		90D0BB8A3416C80CF5CF30F4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayerTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CheerPracticePlayer.app/CheerPracticePlayer";
+			};
+			name = Debug;
+		};
+		95E0EBEEB9AF04C35CA68D4C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		D8EE08DAE2282BB8DB0ADEEA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E124FDA0F6F32E0F7F0C6EEC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayer;
+				PRODUCT_NAME = CheerPracticePlayer;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0BA360EB092D15A975FACFD2 /* Build configuration list for PBXNativeTarget "CheerPracticePlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E124FDA0F6F32E0F7F0C6EEC /* Debug */,
+				2E5D8BC093E454651EA864AC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		0BDA6A40E3135588AC7D7797 /* Build configuration list for PBXNativeTarget "CheerPracticePlayerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				90D0BB8A3416C80CF5CF30F4 /* Debug */,
+				21292EAA730E1B2E11B5D251 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		854259FA8261B32C9033C0BE /* Build configuration list for PBXProject "CheerPracticePlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				95E0EBEEB9AF04C35CA68D4C /* Debug */,
+				D8EE08DAE2282BB8DB0ADEEA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C46450A5F7D5FF4209E51ACA /* Project object */;
+}
