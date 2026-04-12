@@ -54,7 +54,7 @@
 		C42671E80E6800CE0C4253AB /* AudioPlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackEngine.swift; sourceTree = "<group>"; };
 		CAA758339B66DB75E2A13597 /* MixImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixImportService.swift; sourceTree = "<group>"; };
 		CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRunnerState.swift; sourceTree = "<group>"; };
-		D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CheerPracticePlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CheerPracticePlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA72736FC9BD6A807137BF1E /* PracticeBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeBlock.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -327,6 +327,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = WC46K49VFA;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -487,6 +488,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = WC46K49VFA;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
