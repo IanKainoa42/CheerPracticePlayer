@@ -14,6 +14,7 @@
 		52BF0E6B4592CC99ADB522C3 /* PrototypeSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD76AC732608552E7F9F6074 /* PrototypeSession.swift */; };
 		6AF5720DE0FD809FCA3B6593 /* CheerPracticePlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654CAB8C7B1F7B8FB859A286 /* CheerPracticePlayerTests.swift */; };
 		6EF3D27C73C0873074FA9B42 /* ImportedMix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C074127F8658A5BC4C42B93 /* ImportedMix.swift */; };
+		77C56091551F381C59976E4E /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC9DF5F616D46B47C5405F8B /* DesignTokens.swift */; };
 		8753D76F65279BC78DD4A55C /* SessionRunnerState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */; };
 		8F075A2DE5F59BCE017AD468 /* WaveformTrimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1226C6961B0BAB489F276A3D /* WaveformTrimmerView.swift */; };
 		A34A7921BB84EC90F7B33342 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 418B39F18B5C0D83BC956730 /* RootTabView.swift */; };
@@ -60,6 +61,7 @@
 		BD76AC732608552E7F9F6074 /* PrototypeSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrototypeSession.swift; sourceTree = "<group>"; };
 		C42671E80E6800CE0C4253AB /* AudioPlaybackEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlaybackEngine.swift; sourceTree = "<group>"; };
 		CAA758339B66DB75E2A13597 /* MixImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixImportService.swift; sourceTree = "<group>"; };
+		CC9DF5F616D46B47C5405F8B /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRunnerState.swift; sourceTree = "<group>"; };
 		D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CheerPracticePlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA72736FC9BD6A807137BF1E /* PracticeBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeBlock.swift; sourceTree = "<group>"; };
@@ -191,6 +193,7 @@
 			isa = PBXGroup;
 			children = (
 				C42671E80E6800CE0C4253AB /* AudioPlaybackEngine.swift */,
+				CC9DF5F616D46B47C5405F8B /* DesignTokens.swift */,
 				0BCFB608633621584EA24219 /* Formatters.swift */,
 				0A5CE6041A6355AF0426713C /* LiveSessionController.swift */,
 				CAA758339B66DB75E2A13597 /* MixImportService.swift */,
@@ -291,6 +294,7 @@
 			files = (
 				1B5E44BB86D2E199E1B60001 /* AudioPlaybackEngine.swift in Sources */,
 				F881F426BFA5491D585CF8DC /* CheerPracticePlayerApp.swift in Sources */,
+				77C56091551F381C59976E4E /* DesignTokens.swift in Sources */,
 				BE7E2BAB9EA8EC39826956B9 /* Formatters.swift in Sources */,
 				E5CE9235824E933E935E3587 /* HomeView.swift in Sources */,
 				6EF3D27C73C0873074FA9B42 /* ImportedMix.swift in Sources */,
@@ -361,7 +365,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayer;
 				PRODUCT_NAME = CheerPracticePlayer;
 				SDKROOT = iphoneos;
@@ -521,7 +525,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayer;
 				PRODUCT_NAME = CheerPracticePlayer;
 				SDKROOT = iphoneos;

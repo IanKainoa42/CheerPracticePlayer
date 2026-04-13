@@ -6,8 +6,9 @@ struct WaveformTrimmerView: View {
     @Binding var startTime: TimeInterval
     @Binding var endTime: TimeInterval
 
-    private let handleWidth: CGFloat = 14
-    private let trimColor = Color(red: 1.0, green: 0.82, blue: 0.0)
+    private let handleWidth: CGFloat = 16
+    private let startColor = PPColors.accentYellow
+    private let endColor = PPColors.accentOrange
     private let minSelection: TimeInterval = 0.5
 
     var body: some View {
@@ -20,20 +21,22 @@ struct WaveformTrimmerView: View {
             let rightX = ef * w
 
             ZStack {
-                Color.black
+                // Background
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(white: 0.06))
 
                 // Waveform bars
                 waveformCanvas(startFrac: Double(sf), endFrac: Double(ef))
 
                 // Dimmed region — left
                 Rectangle()
-                    .fill(Color.black.opacity(0.5))
+                    .fill(Color.black.opacity(0.6))
                     .frame(width: max(leftX, 0))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
                 // Dimmed region — right
                 Rectangle()
-                    .fill(Color.black.opacity(0.5))
+                    .fill(Color.black.opacity(0.6))
                     .frame(width: max(w - rightX, 0))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
 
@@ -43,8 +46,8 @@ struct WaveformTrimmerView: View {
                 // Bottom border
                 trimBorder(leftX: leftX, rightX: rightX, height: h, top: false)
 
-                // Left handle
-                handle(isLeft: true, height: h)
+                // Left handle (Start)
+                handle(isStart: true, height: h)
                     .position(x: leftX, y: h / 2)
                     .gesture(
                         DragGesture(coordinateSpace: .named("trimmer"))
@@ -55,8 +58,8 @@ struct WaveformTrimmerView: View {
                             }
                     )
 
-                // Right handle
-                handle(isLeft: false, height: h)
+                // Right handle (End)
+                handle(isStart: false, height: h)
                     .position(x: rightX, y: h / 2)
                     .gesture(
                         DragGesture(coordinateSpace: .named("trimmer"))
@@ -69,8 +72,8 @@ struct WaveformTrimmerView: View {
             }
             .coordinateSpace(name: "trimmer")
         }
-        .frame(height: 80)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .frame(height: 88)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Waveform
@@ -80,21 +83,33 @@ struct WaveformTrimmerView: View {
             let count = samples.count
             guard count > 0 else { return }
 
-            let gap: CGFloat = 1.5
-            let barW = max((size.width - CGFloat(count - 1) * gap) / CGFloat(count), 1)
+            let gap: CGFloat = 2
+            let barW = max((size.width - CGFloat(count - 1) * gap) / CGFloat(count), 1.5)
 
             for (i, amp) in samples.enumerated() {
                 let x = CGFloat(i) * (barW + gap)
                 let center = Double((x + barW / 2) / size.width)
                 let inside = center >= startFrac && center <= endFrac
 
-                let barH = max(CGFloat(amp) * size.height * 0.82, 2)
+                let barH = max(CGFloat(amp) * size.height * 0.78, 2)
                 let y = (size.height - barH) / 2
                 let rect = CGRect(x: x, y: y, width: barW, height: barH)
 
+                let color: Color
+                if inside {
+                    // Gradient from yellow to orange across the selection
+                    let t = (center - startFrac) / max(endFrac - startFrac, 0.001)
+                    let r = 1.0
+                    let g = 0.92 - t * 0.50   // yellow -> orange
+                    let b = 0.23 - t * 0.02
+                    color = Color(red: r, green: g, blue: b).opacity(0.9)
+                } else {
+                    color = .white.opacity(0.15)
+                }
+
                 context.fill(
-                    Path(roundedRect: rect, cornerRadius: 1),
-                    with: .color(inside ? .white : .white.opacity(0.22))
+                    Path(roundedRect: rect, cornerRadius: 1.5),
+                    with: .color(color)
                 )
             }
         }
@@ -104,7 +119,13 @@ struct WaveformTrimmerView: View {
 
     private func trimBorder(leftX: CGFloat, rightX: CGFloat, height: CGFloat, top: Bool) -> some View {
         Rectangle()
-            .fill(trimColor)
+            .fill(
+                LinearGradient(
+                    colors: [startColor, endColor],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
             .frame(width: max(rightX - leftX, 0), height: 3)
             .position(
                 x: (leftX + rightX) / 2,
@@ -114,26 +135,40 @@ struct WaveformTrimmerView: View {
 
     // MARK: - Handles
 
-    private func handle(isLeft: Bool, height: CGFloat) -> some View {
-        ZStack {
+    private func handle(isStart: Bool, height: CGFloat) -> some View {
+        let color = isStart ? startColor : endColor
+        let letter = isStart ? "S" : "E"
+
+        return ZStack {
             // Wider invisible hit target
             Color.clear
-                .frame(width: handleWidth + 24, height: height)
+                .frame(width: handleWidth + 28, height: height)
                 .contentShape(Rectangle())
+
+            // Glow effect
+            UnevenRoundedRectangle(
+                topLeadingRadius: isStart ? 6 : 0,
+                bottomLeadingRadius: isStart ? 6 : 0,
+                bottomTrailingRadius: isStart ? 0 : 6,
+                topTrailingRadius: isStart ? 0 : 6
+            )
+            .fill(color.opacity(0.3))
+            .frame(width: handleWidth + 6, height: height)
+            .blur(radius: 4)
 
             // Visible handle
             UnevenRoundedRectangle(
-                topLeadingRadius: isLeft ? 6 : 0,
-                bottomLeadingRadius: isLeft ? 6 : 0,
-                bottomTrailingRadius: isLeft ? 0 : 6,
-                topTrailingRadius: isLeft ? 0 : 6
+                topLeadingRadius: isStart ? 6 : 0,
+                bottomLeadingRadius: isStart ? 6 : 0,
+                bottomTrailingRadius: isStart ? 0 : 6,
+                topTrailingRadius: isStart ? 0 : 6
             )
-            .fill(trimColor)
+            .fill(color)
             .frame(width: handleWidth, height: height)
             .overlay {
-                Image(systemName: isLeft ? "chevron.compact.left" : "chevron.compact.right")
-                    .font(.system(size: 14, weight: .heavy))
-                    .foregroundStyle(.black.opacity(0.5))
+                Text(letter)
+                    .font(.system(size: 11, weight: .black, design: .monospaced))
+                    .foregroundStyle(.black.opacity(0.6))
             }
         }
     }
@@ -147,14 +182,20 @@ struct TrimTimeLabelsView: View {
 
     var body: some View {
         HStack {
-            Text(Formatters.clock(startTime))
+            HStack(spacing: 4) {
+                Circle().fill(PPColors.accentYellow).frame(width: 6, height: 6)
+                Text(Formatters.clock(startTime))
+            }
             Spacer()
             Text("Duration: \(Formatters.clock(endTime - startTime))")
+                .foregroundStyle(PPColors.textPrimary)
             Spacer()
-            Text(Formatters.clock(endTime))
+            HStack(spacing: 4) {
+                Text(Formatters.clock(endTime))
+                Circle().fill(PPColors.accentOrange).frame(width: 6, height: 6)
+            }
         }
-        .font(.caption)
-        .monospacedDigit()
-        .foregroundStyle(.secondary)
+        .font(PPFonts.mono())
+        .foregroundStyle(PPColors.textSecondary)
     }
 }
