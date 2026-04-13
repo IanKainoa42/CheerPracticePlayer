@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeSection: Identifiable, Hashable {
+struct PracticeSection: Identifiable, Hashable, Codable {
     enum SectionType: String, CaseIterable, Codable {
         case warmup
         case jumps

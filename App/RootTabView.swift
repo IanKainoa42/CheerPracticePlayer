@@ -3,6 +3,7 @@ import SwiftUI
 struct RootTabView: View {
     @Binding var session: PrototypeSession
     let controller: LiveSessionController
+    let mixLibrary: MixLibraryStore
 
     var body: some View {
         TabView {
@@ -11,7 +12,7 @@ struct RootTabView: View {
                     Label("Home", systemImage: "house")
                 }
 
-            PracticeBuilderView(session: $session) {
+            PracticeBuilderView(session: $session, mixLibrary: mixLibrary) {
                 controller.syncSession(session)
             }
             .tabItem {

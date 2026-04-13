@@ -1,6 +1,6 @@
 import Foundation
 
-struct ImportedMix: Equatable, Hashable {
+struct ImportedMix: Equatable, Hashable, Codable {
     let id: UUID
     var originalFileName: String
     var localPath: String

@@ -2,9 +2,11 @@ import SwiftUI
 
 struct PracticeBuilderView: View {
     @Binding var session: PrototypeSession
+    let mixLibrary: MixLibraryStore
     let onResetRun: () -> Void
 
     @State private var isImportingMix = false
+    @State private var isShowingLibrary = false
     @State private var importErrorMessage: String?
     @State private var waveformSamples: [Float] = []
 
@@ -45,7 +47,23 @@ struct PracticeBuilderView: View {
             .task(id: session.mix?.id) {
                 await loadWaveform()
             }
+            .sheet(isPresented: $isShowingLibrary) {
+                MixLibraryView(library: mixLibrary) { savedMix in
+                    loadFromLibrary(savedMix)
+                }
+            }
         }
+    }
+
+    private func saveCurrentToLibrary() {
+        guard let mix = session.mix else { return }
+        mixLibrary.save(mix, sections: session.sections)
+    }
+
+    private func loadFromLibrary(_ savedMix: SavedMix) {
+        session.mix = savedMix.mix
+        session.sections = savedMix.sections
+        session.blocks = []
     }
 
     private func loadWaveform() async {
@@ -73,7 +91,7 @@ struct PracticeBuilderView: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             } else {
-                Text("Import a real team audio file to start placing section markers.")
+                Text("Import a mix or load one from your library.")
                     .foregroundStyle(.secondary)
             }
 
@@ -81,6 +99,24 @@ struct PracticeBuilderView: View {
                 isImportingMix = true
             } label: {
                 Label(session.mix == nil ? "Import Team Mix" : "Replace Team Mix", systemImage: "square.and.arrow.down")
+            }
+            .buttonStyle(.borderless)
+
+            Button {
+                isShowingLibrary = true
+            } label: {
+                Label("Load from Library", systemImage: "tray.full")
+            }
+            .buttonStyle(.borderless)
+            .disabled(mixLibrary.mixes.isEmpty)
+
+            if session.mix != nil && !session.sections.isEmpty {
+                Button {
+                    saveCurrentToLibrary()
+                } label: {
+                    Label("Save to Library", systemImage: "square.and.arrow.down.on.square")
+                }
+                .buttonStyle(.borderless)
             }
         }
     }
@@ -284,6 +320,7 @@ private struct SectionEditorCard: View {
                 } label: {
                     Label("Add Block", systemImage: "plus.square.on.square")
                 }
+                .buttonStyle(.borderless)
 
                 Spacer()
 
@@ -292,6 +329,7 @@ private struct SectionEditorCard: View {
                 } label: {
                     Label("Delete", systemImage: "trash")
                 }
+                .buttonStyle(.borderless)
             }
         }
         .padding()

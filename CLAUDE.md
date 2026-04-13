@@ -11,13 +11,13 @@ xcodegen generate
 
 Build and run on simulator:
 ```bash
-xcodebuild -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3' build
+xcodebuild -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' build
 xcrun simctl boot "iPhone 17 Pro" 2>/dev/null; xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/CheerPracticePlayer.app && xcrun simctl launch booted com.ianrichardson.CheerPracticePlayer
 ```
 
 Run tests:
 ```bash
-xcodebuild test -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3'
+xcodebuild test -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1'
 ```
 
 ## Architecture
