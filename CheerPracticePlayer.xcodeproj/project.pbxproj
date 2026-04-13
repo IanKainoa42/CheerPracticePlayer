@@ -22,6 +22,7 @@
 		B66EAF4FC8110000C7C8DA83 /* SavedMix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B15C972C4F3FBBBFE7D865 /* SavedMix.swift */; };
 		BA6E2D0BF1AE75DA71EE4959 /* MixLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C9C6C14BDEAC38A00D5A6A /* MixLibraryView.swift */; };
 		BE7E2BAB9EA8EC39826956B9 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCFB608633621584EA24219 /* Formatters.swift */; };
+		DC8E39ABF08B20A1F4636484 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FEF48FA22168D4C95561E73A /* Assets.xcassets */; };
 		E3DCEE91AEBDC7EB7BE3B224 /* LiveRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053A525D2F0C9C7FFE43A2C8 /* LiveRunView.swift */; };
 		E5CE9235824E933E935E3587 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B84F6E7CD4B0FA0BF0DC9FB /* HomeView.swift */; };
 		ED28BC7F2FCCC96886D7AD03 /* PracticeBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA72736FC9BD6A807137BF1E /* PracticeBlock.swift */; };
@@ -62,6 +63,7 @@
 		CF2CE88F0E84569AC9D5E7C8 /* SessionRunnerState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRunnerState.swift; sourceTree = "<group>"; };
 		D7EEAFE4538D58A78D133B28 /* CheerPracticePlayer.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CheerPracticePlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA72736FC9BD6A807137BF1E /* PracticeBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeBlock.swift; sourceTree = "<group>"; };
+		FEF48FA22168D4C95561E73A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -99,6 +101,7 @@
 		3FEAF0910700E582582AC383 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				FEF48FA22168D4C95561E73A /* Assets.xcassets */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -223,6 +226,7 @@
 			buildConfigurationList = 0BA360EB092D15A975FACFD2 /* Build configuration list for PBXNativeTarget "CheerPracticePlayer" */;
 			buildPhases = (
 				D88B4C2136E522D59F8FF2E5 /* Sources */,
+				678FF41229ABC73DE22E5218 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -268,6 +272,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		678FF41229ABC73DE22E5218 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DC8E39ABF08B20A1F4636484 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D88B4C2136E522D59F8FF2E5 /* Sources */ = {
