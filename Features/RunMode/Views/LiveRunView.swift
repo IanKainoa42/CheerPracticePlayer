@@ -73,6 +73,22 @@ struct LiveRunView: View {
                 .padding(.bottom, 120)
             }
 
+            // Global timeline strip
+            if !controller.waveformSamples.isEmpty {
+                GlobalTimelineStripView(
+                    samples: controller.waveformSamples,
+                    mixDuration: controller.session.mixDuration,
+                    currentTime: controller.currentPlaybackTime,
+                    sections: controller.session.sections,
+                    activeSection: block.section,
+                    onSeek: { controller.seek(to: $0) }
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
+                .background(PPColors.background)
+            }
+
             // Bottom action bar
             bottomActionBar
         }
@@ -644,5 +660,113 @@ private struct CountdownRingView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Global Timeline Strip
+
+private struct GlobalTimelineStripView: View {
+    let samples: [Float]
+    let mixDuration: TimeInterval
+    let currentTime: TimeInterval
+    let sections: [PracticeSection]
+    let activeSection: PracticeSection?
+    let onSeek: (TimeInterval) -> Void
+
+    var body: some View {
+        VStack(spacing: 5) {
+            GeometryReader { geo in
+                let totalWidth = geo.size.width
+                let totalHeight = geo.size.height
+
+                ZStack(alignment: .leading) {
+                    // Background
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(white: 0.06))
+
+                    // Waveform bars
+                    Canvas { context, size in
+                        let count = samples.count
+                        guard count > 0 else { return }
+                        let gap: CGFloat = 1
+                        let barW = max((size.width - CGFloat(count - 1) * gap) / CGFloat(count), 1)
+                        for (index, amp) in samples.enumerated() {
+                            let xPos = CGFloat(index) * (barW + gap)
+                            let barH = max(CGFloat(amp) * size.height * 0.75, 1)
+                            let yPos = (size.height - barH) / 2
+                            context.fill(
+                                Path(roundedRect: CGRect(x: xPos, y: yPos, width: barW, height: barH),
+                                     cornerRadius: 0.5),
+                                with: .color(.white.opacity(0.18))
+                            )
+                        }
+                    }
+
+                    // Section overlays
+                    if mixDuration > 0 {
+                        ForEach(sections) { section in
+                            let startFrac = CGFloat(section.startTime / mixDuration)
+                            let endFrac = CGFloat(section.endTime / mixDuration)
+                            let sectionW = max((endFrac - startFrac) * totalWidth, 2)
+                            let isActive = section.id == activeSection?.id
+
+                            Rectangle()
+                                .fill(section.type.accentColor.opacity(isActive ? 0.30 : 0.10))
+                                .frame(width: sectionW, height: totalHeight)
+                                .offset(x: startFrac * totalWidth)
+
+                            if isActive {
+                                Rectangle()
+                                    .fill(section.type.accentColor.opacity(0.85))
+                                    .frame(width: sectionW, height: 2)
+                                    .offset(x: startFrac * totalWidth)
+                                    .frame(maxHeight: .infinity, alignment: .top)
+                            }
+                        }
+                    }
+
+                    // Playhead
+                    if mixDuration > 0 {
+                        let playFrac = CGFloat(max(0, min(currentTime / mixDuration, 1)))
+                        ZStack(alignment: .top) {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.88))
+                                .frame(width: 2, height: totalHeight)
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 6, height: 6)
+                                .offset(y: 1)
+                        }
+                        .shadow(color: .white.opacity(0.5), radius: 3)
+                        .offset(x: playFrac * totalWidth - 1)
+                        .allowsHitTesting(false)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard mixDuration > 0 else { return }
+                            let clamped = max(0, min(value.location.x, totalWidth))
+                            onSeek(Double(clamped / totalWidth) * mixDuration)
+                        }
+                )
+            }
+            .frame(height: 44)
+
+            HStack {
+                Text(Formatters.clock(currentTime))
+                    .foregroundStyle(PPColors.accentYellow)
+                Spacer()
+                if let section = activeSection {
+                    Text(section.name)
+                        .foregroundStyle(PPColors.textTertiary)
+                    Spacer()
+                }
+                Text(Formatters.clock(mixDuration))
+                    .foregroundStyle(PPColors.textTertiary)
+            }
+            .font(PPFonts.mono(10))
+        }
     }
 }

@@ -5,6 +5,8 @@ struct WaveformTrimmerView: View {
     let duration: TimeInterval
     @Binding var startTime: TimeInterval
     @Binding var endTime: TimeInterval
+    var playheadTime: TimeInterval?
+    var onSeek: ((TimeInterval) -> Void)?
 
     private let handleWidth: CGFloat = 16
     private let startColor = PPColors.accentYellow
@@ -69,8 +71,29 @@ struct WaveformTrimmerView: View {
                                 endTime = min(duration, max(newTime, minTime))
                             }
                     )
+
+                // Playhead — sits above waveform, below handles
+                if let playheadTime, duration > 0 {
+                    let px = CGFloat(max(0, min(playheadTime / duration, 1))) * w
+                    ZStack(alignment: .top) {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.85))
+                            .frame(width: 2, height: h)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 7, height: 7)
+                            .offset(y: 2)
+                    }
+                    .shadow(color: .white.opacity(0.5), radius: 4)
+                    .position(x: px, y: h / 2)
+                    .allowsHitTesting(false)
+                }
             }
             .coordinateSpace(name: "trimmer")
+            .onTapGesture(count: 1, coordinateSpace: .named("trimmer")) { location in
+                guard let onSeek, duration > 0 else { return }
+                onSeek(max(0, min(Double(location.x / w) * duration, duration)))
+            }
         }
         .frame(height: 88)
         .clipShape(RoundedRectangle(cornerRadius: 12))

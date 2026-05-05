@@ -2,15 +2,19 @@ import AVFoundation
 import Foundation
 
 protocol AudioPlaybackControlling: AnyObject {
+    var currentTime: TimeInterval { get }
     func load(url: URL) throws
     func playSegment(startTime: TimeInterval, endTime: TimeInterval)
     func pause()
+    func seek(to time: TimeInterval)
 }
 
 final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
     private var player: AVAudioPlayer?
     private var loadedURL: URL?
     private var stopTask: DispatchWorkItem?
+
+    var currentTime: TimeInterval { player?.currentTime ?? 0 }
 
     func load(url: URL) throws {
         guard loadedURL != url else { return }
@@ -46,5 +50,9 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
     func pause() {
         stopTask?.cancel()
         player?.pause()
+    }
+
+    func seek(to time: TimeInterval) {
+        player?.currentTime = time
     }
 }

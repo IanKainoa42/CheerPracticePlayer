@@ -144,6 +144,7 @@ private final class FakeAudioPlayer: AudioPlaybackControlling {
     var seekTimes: [TimeInterval] = []
     var playCallCount = 0
     var pauseCallCount = 0
+    var currentTime: TimeInterval = 0
 
     func load(url: URL) throws {
         loadedURL = url
@@ -156,5 +157,9 @@ private final class FakeAudioPlayer: AudioPlaybackControlling {
 
     func pause() {
         pauseCallCount += 1
+    }
+
+    func seek(to time: TimeInterval) {
+        currentTime = time
     }
 }

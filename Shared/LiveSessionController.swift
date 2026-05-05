@@ -10,11 +10,14 @@ final class LiveSessionController {
     private(set) var audioStatus: String = "Ready"
     private(set) var elapsedSessionTime: TimeInterval = 0
     private(set) var isScreenLocked = false
+    private(set) var waveformSamples: [Float] = []
+    private(set) var currentPlaybackTime: TimeInterval = 0
 
     private let audioPlayer: AudioPlaybackControlling
     private var countdownTimer: Timer?
     private var sessionTimer: Timer?
     private var playbackEndTimer: Timer?
+    private var playheadTimer: Timer?
 
     init(session: PrototypeSession, audioPlayer: AudioPlaybackControlling = AudioPlaybackEngine()) {
         self.session = session
@@ -26,6 +29,12 @@ final class LiveSessionController {
         self.session = session
         runner.syncTemplate(session)
         audioStatus = session.mix == nil ? "Import a mix to enable playback" : "Ready"
+        loadWaveformIfNeeded()
+    }
+
+    func seek(to time: TimeInterval) {
+        audioPlayer.seek(to: time)
+        currentPlaybackTime = time
     }
 
     // MARK: - Playback Controls
@@ -76,6 +85,7 @@ final class LiveSessionController {
     func pausePlayback() {
         stopCountdown()
         cancelPlaybackEnd()
+        stopPlayheadTimer()
         audioPlayer.pause()
         audioStatus = "Paused"
     }
@@ -99,10 +109,12 @@ final class LiveSessionController {
     func resetSession() {
         stopCountdown()
         stopSessionTimer()
+        stopPlayheadTimer()
         cancelPlaybackEnd()
         audioPlayer.pause()
         runner.resetSession()
         elapsedSessionTime = 0
+        currentPlaybackTime = 0
         audioStatus = "Ready"
         keepScreenAwake(false)
     }
@@ -129,6 +141,7 @@ final class LiveSessionController {
 
         case .complete:
             audioPlayer.pause()
+            stopPlayheadTimer()
             audioStatus = "Session complete 🎉"
             stopSessionTimer()
             keepScreenAwake(false)
@@ -216,6 +229,7 @@ final class LiveSessionController {
             endTime: block.section.endTime
         )
         audioStatus = "Playing \(block.section.name) — Rep \(runner.currentRep)/\(block.reps)"
+        startPlayheadTimer()
 
         // Schedule auto-advance when the section finishes playing
         let sectionDuration = block.section.duration
@@ -231,6 +245,37 @@ final class LiveSessionController {
     private func cancelPlaybackEnd() {
         playbackEndTimer?.invalidate()
         playbackEndTimer = nil
+    }
+
+    // MARK: - Playhead Timer
+
+    private func startPlayheadTimer() {
+        stopPlayheadTimer()
+        playheadTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.currentPlaybackTime = self.audioPlayer.currentTime
+            }
+        }
+    }
+
+    private func stopPlayheadTimer() {
+        playheadTimer?.invalidate()
+        playheadTimer = nil
+    }
+
+    // MARK: - Waveform
+
+    private func loadWaveformIfNeeded() {
+        guard let mix = session.mix else {
+            waveformSamples = []
+            return
+        }
+        let url = mix.localURL
+        Task {
+            let samples = (try? await WaveformExtractor.extractSamples(from: url)) ?? []
+            self.waveformSamples = samples
+        }
     }
 
     // MARK: - Screen Lock

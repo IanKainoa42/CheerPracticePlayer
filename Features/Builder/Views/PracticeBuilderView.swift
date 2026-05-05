@@ -11,6 +11,8 @@ struct PracticeBuilderView: View {
     @State private var waveformSamples: [Float] = []
     @State private var previewingSection: PracticeSection?
     @State private var previewEngine = AudioPlaybackEngine()
+    @State private var previewPlayhead: TimeInterval = 0
+    @State private var previewPollTimer: Timer?
 
     var body: some View {
         NavigationStack {
@@ -233,6 +235,7 @@ struct PracticeBuilderView: View {
                     maxDuration: max(session.mixDuration, 1),
                     waveformSamples: waveformSamples,
                     isPreviewing: previewingSection?.id == section.id,
+                    playheadTime: previewingSection?.id == section.id ? previewPlayhead : nil,
                     onChange: { updated in
                         session.upsertSection(updated)
                     },
@@ -249,6 +252,7 @@ struct PracticeBuilderView: View {
                     onPreview: {
                         previewSection(section)
                     },
+                    onSeek: { time in seekPreview(section: section, to: time) },
                     onDuplicate: {
                         duplicateSection(section)
                     }
@@ -404,20 +408,38 @@ struct PracticeBuilderView: View {
     }
 
     private func previewSection(_ section: PracticeSection) {
+        seekPreview(section: section, to: section.startTime)
+    }
+
+    private func seekPreview(section: PracticeSection, to time: TimeInterval) {
         guard let mix = session.mix else { return }
         do {
             try previewEngine.load(url: mix.localURL)
-            previewEngine.playSegment(startTime: section.startTime, endTime: section.endTime)
+            let endTime = section.endTime
+            previewEngine.playSegment(startTime: time, endTime: endTime)
+            previewPlayhead = time
             previewingSection = section
-            // Reset preview state after section duration
-            DispatchQueue.main.asyncAfter(deadline: .now() + section.duration) {
-                if previewingSection?.id == section.id {
-                    previewingSection = nil
+            startPreviewPollTimer()
+            let remaining = max(endTime - time, 0.1)
+            DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
+                if self.previewingSection?.id == section.id {
+                    self.previewingSection = nil
+                    self.stopPreviewPollTimer()
                 }
             }
-        } catch {
-            // Silently fail preview
+        } catch {}
+    }
+
+    private func startPreviewPollTimer() {
+        stopPreviewPollTimer()
+        previewPollTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            Task { @MainActor in self.previewPlayhead = self.previewEngine.currentTime }
         }
+    }
+
+    private func stopPreviewPollTimer() {
+        previewPollTimer?.invalidate()
+        previewPollTimer = nil
     }
 
     private func duplicateSection(_ section: PracticeSection) {
@@ -544,10 +566,12 @@ private struct BuilderSectionCard: View {
     let maxDuration: TimeInterval
     let waveformSamples: [Float]
     let isPreviewing: Bool
+    var playheadTime: TimeInterval?
     let onChange: (PracticeSection) -> Void
     let onDelete: () -> Void
     let onAddBlock: () -> Void
     let onPreview: () -> Void
+    var onSeek: ((TimeInterval) -> Void)?
     let onDuplicate: () -> Void
 
     var body: some View {
@@ -658,7 +682,9 @@ private struct BuilderSectionCard: View {
                                 updated.endTime = newValue
                                 onChange(updated)
                             }
-                        )
+                        ),
+                        playheadTime: playheadTime,
+                        onSeek: onSeek
                     )
 
                     TrimTimeLabelsView(startTime: section.startTime, endTime: section.endTime)
