@@ -9,16 +9,18 @@ Project uses XcodeGen. Regenerate after changing `project.yml`:
 xcodegen generate
 ```
 
-Build and run on simulator:
+Default dogfood launch is Mac Catalyst, not iOS Simulator. Use the repo helper so the built app appears on this Mac:
 ```bash
-xcodebuild -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' build
-xcrun simctl boot "iPhone 17 Pro" 2>/dev/null; xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/CheerPracticePlayer.app && xcrun simctl launch booted com.ianrichardson.CheerPracticePlayer
+tools/run-maccatalyst.sh
 ```
 
-Run tests:
+Equivalent explicit build command:
 ```bash
-xcodebuild test -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1'
+xcodebuild -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' -derivedDataPath build/DerivedData -toolchain XcodeDefault CODE_SIGNING_ALLOWED=NO build
+open -n build/DerivedData/Build/Products/Debug-maccatalyst/CheerPracticePlayer.app
 ```
+
+Only use an iOS Simulator destination when the task explicitly asks for simulator verification. Run tests against an installed destination from `xcodebuild -showdestinations`.
 
 ## Architecture
 

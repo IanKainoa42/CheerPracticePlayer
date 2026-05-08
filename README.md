@@ -32,20 +32,31 @@ Prove that coaches can set up and run a structured practice flow faster than man
 
 ## Local development
 
-Generate the project:
+Generate the project after changing `project.yml`:
 
 ```bash
 xcodegen generate
 ```
 
-Show available simulators:
+Show available destinations:
 
 ```bash
 xcodebuild -showdestinations -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer
 ```
 
-Run tests using an installed simulator:
+Dogfood/run on this Mac with Mac Catalyst (default for agent work):
 
 ```bash
-xcodebuild test   -project CheerPracticePlayer.xcodeproj   -scheme CheerPracticePlayer   -destination 'platform=iOS Simulator,name=<DEVICE>,OS=<VERSION>'
+tools/run-maccatalyst.sh
+```
+
+That helper builds with `-destination 'platform=macOS,variant=Mac Catalyst,name=My Mac'`, writes products under `build/DerivedData`, uses `CODE_SIGNING_ALLOWED=NO` for local unsigned dogfood when no Mac Development cert is installed, and opens `build/DerivedData/Build/Products/Debug-maccatalyst/CheerPracticePlayer.app` so the app appears on the Mac.
+
+Run tests using an installed destination. Prefer Mac Catalyst or a real iOS device for product verification; use Simulator only when explicitly requested:
+
+```bash
+xcodebuild test \
+  -project CheerPracticePlayer.xcodeproj \
+  -scheme CheerPracticePlayer \
+  -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac'
 ```
