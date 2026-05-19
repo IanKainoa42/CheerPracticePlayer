@@ -464,8 +464,7 @@ struct PracticeBuilderView: View {
             reps: block.reps,
             restSeconds: block.restSeconds,
             leadInSeconds: block.leadInSeconds,
-            restartMode: block.restartMode,
-            metronomeEnabled: block.metronomeEnabled
+            restartMode: block.restartMode
         )
         withAnimation(.spring(response: 0.35)) {
             session.blocks.append(newBlock)
@@ -775,21 +774,12 @@ private struct BuilderBlockCard: View {
                 compactStepper(label: "Lead-in", value: $block.leadInSeconds, range: 0...32, suffix: "s")
             }
 
-            HStack(spacing: 12) {
-                Picker("Restart", selection: $block.restartMode) {
-                    ForEach(PracticeBlock.RestartMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue.capitalized).tag(mode)
-                    }
+            Picker("Restart", selection: $block.restartMode) {
+                ForEach(PracticeBlock.RestartMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue.capitalized).tag(mode)
                 }
-                .pickerStyle(.segmented)
-
-                Toggle(isOn: $block.metronomeEnabled) {
-                    Image(systemName: "metronome")
-                        .font(.system(size: 14))
-                }
-                .toggleStyle(.button)
-                .tint(PPColors.accentOrange)
             }
+            .pickerStyle(.segmented)
 
             HStack {
                 Image(systemName: "timer")

@@ -228,12 +228,6 @@ struct HomeView: View {
 
                         Spacer()
 
-                        if block.metronomeEnabled {
-                            Image(systemName: "metronome.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(PPColors.accentOrange)
-                        }
-
                         Image(systemName: block.restartMode == .automatic ? "repeat" : "hand.tap")
                             .font(.system(size: 12))
                             .foregroundStyle(PPColors.textTertiary)

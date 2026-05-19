@@ -1,0 +1,50 @@
+default_platform(:ios)
+
+api_key = app_store_connect_api_key(
+  key_id: "6H24WZ2RQ5",
+  issuer_id: "7642a25e-aca7-402d-8b7d-de18dfef1756",
+  key_filepath: "fastlane/AuthKey.json",
+  duration: 1200,
+  in_house: false
+)
+
+platform :ios do
+  desc "Regenerate Xcode project from project.yml"
+  lane :gen do
+    sh("cd .. && xcodegen generate")
+  end
+
+  desc "Bump CURRENT_PROJECT_VERSION in project.yml by 1"
+  lane :bump_build do
+    project_yml = "../project.yml"
+    content = File.read(project_yml)
+    current = content.match(/CURRENT_PROJECT_VERSION:\s*(\d+)/)[1].to_i
+    new_build = current + 1
+    new_content = content.sub(/CURRENT_PROJECT_VERSION:\s*\d+/, "CURRENT_PROJECT_VERSION: #{new_build}")
+    File.write(project_yml, new_content)
+    UI.success("Bumped CURRENT_PROJECT_VERSION: #{current} -> #{new_build}")
+    sh("cd .. && xcodegen generate")
+  end
+
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    sh("cd .. && xcodegen generate")
+
+    # PATH=/usr/bin first to avoid Homebrew/MacPorts rsync breaking exportArchive
+    ENV["PATH"] = "/usr/bin:#{ENV['PATH']}"
+
+    build_app(
+      scheme: "CheerPracticePlayer",
+      export_method: "app-store",
+      clean: true,
+      destination: "generic/platform=iOS",
+      xcargs: "-allowProvisioningUpdates"
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+      notify_external_testers: false
+    )
+  end
+end

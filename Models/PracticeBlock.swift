@@ -13,7 +13,6 @@ struct PracticeBlock: Identifiable, Hashable {
     var restSeconds: Int
     var leadInSeconds: Int
     var restartMode: RestartMode
-    var metronomeEnabled: Bool
 
     var estimatedDuration: TimeInterval {
         let repCount = max(reps, 0)

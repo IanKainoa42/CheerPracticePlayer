@@ -11,3 +11,13 @@ build/
 
 # macOS
 .DS_Store
+
+# fastlane
+fastlane/AuthKey.json
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/builds
+*.ipa
+*.dSYM.zip

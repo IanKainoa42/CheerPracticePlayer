@@ -74,8 +74,7 @@ struct PrototypeSession: Identifiable, Equatable {
                 reps: 3,
                 restSeconds: 30,
                 leadInSeconds: 8,
-                restartMode: .automatic,
-                metronomeEnabled: false
+                restartMode: .automatic
             )
         )
     }
@@ -123,8 +122,7 @@ struct PrototypeSession: Identifiable, Equatable {
                     reps: 5,
                     restSeconds: 45,
                     leadInSeconds: 8,
-                    restartMode: .automatic,
-                    metronomeEnabled: true
+                    restartMode: .automatic
                 ),
                 PracticeBlock(
                     id: UUID(),
@@ -133,8 +131,7 @@ struct PrototypeSession: Identifiable, Equatable {
                     reps: 4,
                     restSeconds: 60,
                     leadInSeconds: 8,
-                    restartMode: .manual,
-                    metronomeEnabled: false
+                    restartMode: .manual
                 ),
                 PracticeBlock(
                     id: UUID(),
@@ -143,8 +140,7 @@ struct PrototypeSession: Identifiable, Equatable {
                     reps: 2,
                     restSeconds: 120,
                     leadInSeconds: 16,
-                    restartMode: .automatic,
-                    metronomeEnabled: false
+                    restartMode: .automatic
                 )
             ]
         )

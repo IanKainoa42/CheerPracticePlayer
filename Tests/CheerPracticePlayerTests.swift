@@ -101,8 +101,7 @@ final class CheerPracticePlayerTests: XCTestCase {
             reps: 5,
             restSeconds: 45,
             leadInSeconds: 8,
-            restartMode: .automatic,
-            metronomeEnabled: true
+            restartMode: .automatic
         )
 
         XCTAssertEqual(block.estimatedDuration, 370, accuracy: 0.001)
