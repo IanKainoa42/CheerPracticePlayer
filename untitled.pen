@@ -18,7 +18,7 @@
       "id": "TsjpQ",
       "x": 856,
       "y": -16,
-      "name": "Loop Setup Screen",
+      "name": "Onboarding Screen",
       "clip": true,
       "width": 390,
       "height": 844,
@@ -122,7 +122,7 @@
                   "id": "M6Cop",
                   "name": "eyebrow",
                   "fill": "#888888",
-                  "content": "LOOP PROGRAMMER",
+                  "content": "STEP 1 OF 3",
                   "fontFamily": "Geist",
                   "fontSize": 12,
                   "fontWeight": "700",
@@ -135,7 +135,7 @@
                   "fill": "#FFFFFF",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "BUILD YOUR REPEAT MAP",
+                  "content": "IMPORT MIX AND DEFINE SECTIONS",
                   "fontFamily": "Anton",
                   "fontSize": 26,
                   "fontWeight": "normal"
@@ -175,7 +175,7 @@
                   "id": "u0XgY",
                   "name": "trackLabel",
                   "fill": "#888888",
-                  "content": "CURRENT TRACK",
+                  "content": "IMPORTED MIX",
                   "fontFamily": "Geist",
                   "fontSize": 11,
                   "fontWeight": "700",
@@ -221,7 +221,7 @@
                   "id": "cHoBe",
                   "name": "loopLabel",
                   "fill": "#FFFFFF",
-                  "content": "LOOP SECTION",
+                  "content": "SECTION BUILDER",
                   "fontFamily": "Geist",
                   "fontSize": 11,
                   "fontWeight": "700",
@@ -594,7 +594,7 @@
                   "id": "M7kSd",
                   "name": "resetLabel",
                   "fill": "#888888",
-                  "content": "RESET BREAK",
+                  "content": "RESET + CUE SETTINGS",
                   "fontFamily": "Geist",
                   "fontSize": 11,
                   "fontWeight": "700",
@@ -776,21 +776,21 @@
                       "id": "kBQcM",
                       "name": "ctaText",
                       "fill": "#FFFFFF",
-                      "content": "START PRACTICING",
+                      "content": "CONTINUE TO PRACTICE BLOCKS",
                       "fontFamily": "Inter",
                       "fontSize": 14,
                       "fontWeight": "800"
                     },
-                    {
-                      "type": "text",
-                      "id": "P9FPX",
-                      "name": "ctaMeta",
-                      "fill": "#FFFFFF",
-                      "content": "ENTER",
-                      "fontFamily": "Geist Mono",
-                      "fontSize": 12,
-                      "fontWeight": "700"
-                    }
+                {
+                  "type": "text",
+                  "id": "P9FPX",
+                  "name": "ctaMeta",
+                  "fill": "#FFFFFF",
+                  "content": "STEP 2",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                }
                   ]
                 }
               ]
@@ -802,9 +802,9 @@
     {
       "type": "frame",
       "id": "LEyU8",
-      "x": 1294,
+      "x": 1732,
       "y": -16,
-      "name": "Listening Mode Screen",
+      "name": "Player View Screen",
       "clip": true,
       "width": 390,
       "height": 844,
@@ -1024,7 +1024,7 @@
                   "id": "Nl0sE",
                   "name": "cueState",
                   "fill": "#FFEB3B",
-                  "content": "cue armed",
+                  "content": "from planner",
                   "fontFamily": "Geist Mono",
                   "fontSize": 12,
                   "fontWeight": "700"
@@ -1038,7 +1038,7 @@
               "fill": "#FFFFFF",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "STEP 3: RUN CLAP REPEATS",
+              "content": "STEP 3: PLAYER VIEW",
               "lineHeight": 0.92,
               "fontFamily": "Anton",
               "fontSize": 40,
@@ -1259,7 +1259,7 @@
                   "id": "p9XOy",
                   "name": "r1l",
                   "fill": "#000000",
-                  "content": "Path",
+                  "content": "Flow",
                   "fontFamily": "Anton",
                   "fontSize": 30,
                   "fontWeight": "normal"
@@ -1269,7 +1269,7 @@
                   "id": "4581Y",
                   "name": "r1r",
                   "fill": "#FF6B35",
-                  "content": "Trim -> Cue -> Run",
+                  "content": "Onboard -> Plan -> Play",
                   "fontFamily": "Geist Mono",
                   "fontSize": 20,
                   "fontWeight": "700"
@@ -1298,7 +1298,7 @@
                   "id": "Crfbq",
                   "name": "r2l",
                   "fill": "#000000",
-                  "content": "Edit loop",
+                  "content": "Edit plan",
                   "fontFamily": "Anton",
                   "fontSize": 30,
                   "fontWeight": "normal"
@@ -1308,7 +1308,7 @@
                   "id": "EDA3Z",
                   "name": "r2r",
                   "fill": "#000000",
-                  "content": "Back to trimmer",
+                  "content": "Back to chart",
                   "fontFamily": "Geist Mono",
                   "fontSize": 20,
                   "fontWeight": "700"
@@ -1383,7 +1383,7 @@
                   "id": "U625G",
                   "name": "actionText",
                   "fill": "#000000",
-                  "content": "STOP LISTENING",
+                  "content": "BACK TO PLANNER",
                   "fontFamily": "Anton",
                   "fontSize": 30,
                   "fontWeight": "normal"
@@ -1410,6 +1410,272 @@
           "width": "fill_container",
           "height": 24,
           "fill": "#FFFFFF"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "PLaN1",
+      "x": 1294,
+      "y": -16,
+      "name": "Practice Planner Screen",
+      "clip": true,
+      "width": 390,
+      "height": 844,
+      "fill": "#FFFFFF",
+      "cornerRadius": 36,
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "PSt01",
+          "name": "status",
+          "width": "fill_container",
+          "height": 62,
+          "fill": "#FFFFFF",
+          "padding": [
+            0,
+            20
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "PStTm",
+              "fill": "#000000",
+              "content": "9:41",
+              "fontFamily": "Inter",
+              "fontSize": 16,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "PStIc",
+              "fill": "#000000",
+              "content": "5G WIFI 87%",
+              "fontFamily": "Geist Mono",
+              "fontSize": 12,
+              "fontWeight": "700"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "PApp1",
+          "name": "app",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 10,
+          "padding": [
+            8,
+            20,
+            14,
+            20
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "PHdr1",
+              "width": "fill_container",
+              "fill": "#000000",
+              "cornerRadius": 4,
+              "layout": "vertical",
+              "gap": 4,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "PHdrK",
+                  "fill": "#888888",
+                  "content": "STEP 2 OF 3",
+                  "fontFamily": "Geist",
+                  "fontSize": 12,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "text",
+                  "id": "PHdrT",
+                  "fill": "#FFFFFF",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "PRACTICE PLANNER CHART",
+                  "fontFamily": "Anton",
+                  "fontSize": 32
+                },
+                {
+                  "type": "text",
+                  "id": "PHdrB",
+                  "fill": "#FFFFFF",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Arrange blocks in any order. Drag to reorder like shortcuts.",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "lineHeight": 1.35
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PChrt",
+              "width": "fill_container",
+              "fill": "#FFFFFF",
+              "cornerRadius": 4,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#CCCCCC"
+              },
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "PChLb",
+                  "fill": "#000000",
+                  "content": "TIME BREAKDOWN",
+                  "fontFamily": "Geist",
+                  "fontSize": 11,
+                  "fontWeight": "700",
+                  "letterSpacing": 0.6
+                },
+                {
+                  "type": "frame",
+                  "id": "PBar1",
+                  "width": "fill_container",
+                  "height": 22,
+                  "layout": "none",
+                  "cornerRadius": 4,
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "PBarA",
+                      "width": 170,
+                      "height": 22,
+                      "fill": "#000000",
+                      "cornerRadius": 4
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "PBarB",
+                      "x": 170,
+                      "width": 90,
+                      "height": 22,
+                      "fill": "#FF6B35"
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "PBarC",
+                      "x": 260,
+                      "width": 90,
+                      "height": 22,
+                      "fill": "#FFEB3B"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "PChMt",
+                  "fill": "#000000",
+                  "content": "Play 12:30  |  Rest 04:10  |  Lead-in 02:20",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 11
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PBlk1",
+              "width": "fill_container",
+              "fill": "#FF6B35",
+              "cornerRadius": 4,
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "PBlkN",
+                  "fill": "#FFFFFF",
+                  "content": "01  STANDING TUMBLING",
+                  "fontFamily": "Anton",
+                  "fontSize": 28
+                },
+                {
+                  "type": "text",
+                  "id": "PBlkM",
+                  "fill": "#FFFFFF",
+                  "content": "Reps 4   Rest 20s   Cue clap   Drag == ",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PBlk2",
+              "width": "fill_container",
+              "fill": "#FFFFFF",
+              "cornerRadius": 4,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#CCCCCC"
+              },
+              "layout": "vertical",
+              "gap": 6,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "PBl2N",
+                  "fill": "#000000",
+                  "content": "02  JUMPS",
+                  "fontFamily": "Anton",
+                  "fontSize": 28
+                },
+                {
+                  "type": "text",
+                  "id": "PBl2M",
+                  "fill": "#000000",
+                  "content": "Reps 3   Rest 15s   Cue auto   Drag == ",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 12
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PAct1",
+              "width": "fill_container",
+              "fill": "#FFEB3B",
+              "cornerRadius": 4,
+              "layout": "vertical",
+              "gap": 8,
+              "padding": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "PActT",
+                  "fill": "#000000",
+                  "content": "START PLAYER VIEW",
+                  "fontFamily": "Anton",
+                  "fontSize": 32
+                },
+                {
+                  "type": "text",
+                  "id": "PActB",
+                  "fill": "#000000",
+                  "content": "Save plan  |  then go to step 3",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
         }
       ]
     }

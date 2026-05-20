@@ -3,41 +3,30 @@ import SwiftUI
 struct PracticeBuilderView: View {
     @Binding var session: PrototypeSession
     let mixLibrary: MixLibraryStore
-    let onResetRun: () -> Void
+    let audioEngine: AudioPlaybackEngine
 
     @State private var isImportingMix = false
     @State private var isShowingLibrary = false
     @State private var importErrorMessage: String?
     @State private var waveformSamples: [Float] = []
     @State private var previewingSection: PracticeSection?
-    @State private var previewEngine = AudioPlaybackEngine()
     @State private var previewPlayhead: TimeInterval = 0
     @State private var previewPollTimer: Timer?
+    @State private var previewEndTask: DispatchWorkItem?
+    @State private var isPreviewPaused: Bool = false
+    @State private var hasFirstSectionSaved: Bool = false
 
     var body: some View {
         NavigationStack {
             ZStack {
                 PPColors.background.ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 20) {
-                        heroHeader
-                        trackCard
-                        if session.mix != nil {
-                            timelineOverview
-                            sectionsList
-                            blocksOverview
-                            practiceTimeSummary
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 100)
-                }
-
-                // Anchored CTA bar
-                VStack {
-                    Spacer()
-                    ctaBar
+                if session.mix == nil {
+                    emptyImportState
+                } else if !hasFirstSectionSaved {
+                    firstSectionMarkerView
+                } else {
+                    step3ProgramView
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -63,14 +52,6 @@ struct PracticeBuilderView: View {
                             } label: {
                                 Label("Save to Library", systemImage: "square.and.arrow.down.on.square")
                             }
-                        }
-
-                        Divider()
-
-                        Button {
-                            onResetRun()
-                        } label: {
-                            Label("Reset Run", systemImage: "arrow.counterclockwise")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -105,293 +86,321 @@ struct PracticeBuilderView: View {
         }
     }
 
-    // MARK: - Hero Header
 
-    private var heroHeader: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("BUILD YOUR")
-                .font(PPFonts.hero(36))
+
+
+    // MARK: - Empty Import State
+
+    private var emptyImportState: some View {
+        VStack {
+            Spacer()
+            Button {
+                isImportingMix = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.system(size: 18, weight: .bold))
+                    Text("IMPORT MIX")
+                        .font(PPFonts.headline(16))
+                        .tracking(1.2)
+                }
+                .foregroundStyle(.black)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 18)
+                .background(Capsule().fill(PPColors.accentYellow))
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Step 2: First Section Marker
+
+    private var firstSectionMarkerView: some View {
+        let draftSection = session.sections.first
+        let canSave = draftSection.map { $0.duration > 0 } ?? false
+
+        return ZStack {
+            ScrollView {
+                VStack(spacing: 28) {
+                    VStack(spacing: 14) {
+                        Text("STEP 2 OF 3")
+                            .font(PPFonts.caption(11))
+                            .tracking(1.4)
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(PPColors.accentYellow))
+
+                        Text("MARK A SECTION\nOF THE MUSIC")
+                            .font(PPFonts.hero(30))
+                            .foregroundStyle(PPColors.textPrimary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("Drag the handles to set the in and out points of the phrase you want to repeat.")
+                            .font(PPFonts.body(14))
+                            .foregroundStyle(PPColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
+
+                    VStack(spacing: 12) {
+                        Text(session.mix?.displayName.uppercased() ?? "")
+                            .font(PPFonts.caption(10))
+                            .tracking(1.0)
+                            .foregroundStyle(PPColors.textTertiary)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        if let section = draftSection {
+                            WaveformTrimmerView(
+                                samples: waveformSamples,
+                                duration: max(session.mixDuration, 1),
+                                startTime: Binding(
+                                    get: { section.startTime },
+                                    set: { newValue in
+                                        var updated = section
+                                        updated.startTime = newValue
+                                        session.upsertSection(updated)
+                                        recalibratePreview(for: updated)
+                                    }
+                                ),
+                                endTime: Binding(
+                                    get: { section.endTime },
+                                    set: { newValue in
+                                        var updated = section
+                                        updated.endTime = newValue
+                                        session.upsertSection(updated)
+                                        recalibratePreview(for: updated)
+                                    }
+                                ),
+                                playheadTime: previewingSection?.id == section.id ? previewPlayhead : nil,
+                                onSeek: { time in seekPreview(section: section, to: time) }
+                            )
+
+                            TrimTimeLabelsView(
+                                startTime: section.startTime,
+                                endTime: section.endTime
+                            )
+
+                            if canSave {
+                                previewControl(for: section)
+                                    .padding(.top, 12)
+                            }
+                        }
+                    }
+
+                    Text("Don't worry about getting every section now — you can add as many as you want after this.")
+                        .font(PPFonts.body(13))
+                        .foregroundStyle(PPColors.textTertiary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 4)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 140)
+            }
+
+            VStack {
+                Spacer()
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [PPColors.background.opacity(0), PPColors.background],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 30)
+
+                    VStack {
+                        PPPrimaryButton("Save Section", icon: "checkmark") {
+                            stopPreview()
+                            ensureBlocksForAllSections()
+                            withAnimation(.spring(response: 0.35)) {
+                                hasFirstSectionSaved = true
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                    .background(PPColors.background)
+                }
+                .opacity(canSave ? 1.0 : 0.4)
+                .allowsHitTesting(canSave)
+            }
+        }
+    }
+
+    private func previewControl(for section: PracticeSection) -> some View {
+        let isThisActive = previewingSection?.id == section.id
+        let isPlaying = isThisActive && !isPreviewPaused
+        let icon = isPlaying ? "pause.fill" : "play.fill"
+        let label = isThisActive ? (isPlaying ? "PAUSE" : "RESUME") : "PREVIEW SECTION"
+
+        return Button {
+            togglePreview(section)
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [PPColors.accentYellow, PPColors.accentOrange],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 56, height: 56)
+                        .shadow(color: PPColors.accentOrange.opacity(0.35), radius: 14, x: 0, y: 6)
+
+                    Image(systemName: icon)
+                        .font(.system(size: 22, weight: .black))
+                        .foregroundStyle(.black)
+                        .offset(x: isPlaying ? 0 : 2)
+                }
+
+                Text(label)
+                    .font(PPFonts.caption(12))
+                    .tracking(1.4)
+                    .foregroundStyle(PPColors.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 18)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Step 3: Program View
+
+    private var step3ProgramView: some View {
+        ScrollView {
+            VStack(spacing: 28) {
+                step3Hero
+                programCardsList
+                addSectionButton
+                if !session.blocks.isEmpty {
+                    totalTimeSummary
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+        .onAppear { ensureBlocksForAllSections() }
+    }
+
+    private var step3Hero: some View {
+        VStack(spacing: 14) {
+            Text("STEP 3 OF 3")
+                .font(PPFonts.caption(11))
+                .tracking(1.4)
+                .foregroundStyle(.black)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(PPColors.accentYellow))
+
+            Text("PROGRAM YOUR\nPRACTICE")
+                .font(PPFonts.hero(30))
                 .foregroundStyle(PPColors.textPrimary)
-            Text("REPEAT MAP")
-                .font(PPFonts.hero(36))
-                .foregroundStyle(PPColors.accentYellow)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
-            Text("Trim the section, set the break, then run it")
+            Text("Dial in reps and rest for each section. Add more sections any time.")
                 .font(PPFonts.body(14))
                 .foregroundStyle(PPColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .padding(.top, 8)
     }
 
-    // MARK: - Track Card
+    // MARK: - Program Cards List
 
-    private var trackCard: some View {
-        VStack(spacing: 0) {
-            if let mix = session.mix {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(PPColors.accentYellow.opacity(0.15))
-                            .frame(width: 52, height: 52)
-                        Image(systemName: "music.note")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(PPColors.accentYellow)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(mix.displayName)
-                            .font(PPFonts.headline())
-                            .foregroundStyle(PPColors.textPrimary)
-                            .lineLimit(1)
-
-                        HStack(spacing: 12) {
-                            Label(Formatters.clock(mix.duration), systemImage: "clock")
-                            Label(session.teamName, systemImage: "person.3")
-                        }
-                        .font(PPFonts.mono())
-                        .foregroundStyle(PPColors.textSecondary)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        isImportingMix = true
-                    } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(PPColors.textTertiary)
-                    }
-                }
-            } else {
-                VStack(spacing: 16) {
-                    Image(systemName: "waveform.badge.plus")
-                        .font(.system(size: 36))
-                        .foregroundStyle(PPColors.accentYellow)
-
-                    Text("Import your team mix to get started")
-                        .font(PPFonts.body(15))
-                        .foregroundStyle(PPColors.textSecondary)
-                        .multilineTextAlignment(.center)
-
-                    HStack(spacing: 12) {
-                        Button {
-                            isImportingMix = true
-                        } label: {
-                            Label("Import Mix", systemImage: "square.and.arrow.down")
-                                .font(PPFonts.headline(14))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background(PPColors.accentYellow)
-                                .foregroundStyle(.black)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-
-                        if !mixLibrary.mixes.isEmpty {
-                            Button {
-                                isShowingLibrary = true
-                            } label: {
-                                Label("Library", systemImage: "tray.full")
-                                    .font(PPFonts.headline(14))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .background(PPColors.cardBorder)
-                                    .foregroundStyle(PPColors.textPrimary)
-                                    .clipShape(Capsule())
+    private var programCardsList: some View {
+        VStack(spacing: 16) {
+            ForEach(Array(session.sections.enumerated()), id: \.element.id) { index, section in
+                if let block = session.blocks.first(where: { $0.section.id == section.id }) {
+                    ProgramSectionCard(
+                        index: index,
+                        section: section,
+                        block: block,
+                        maxDuration: max(session.mixDuration, 1),
+                        waveformSamples: waveformSamples,
+                        isPreviewing: previewingSection?.id == section.id,
+                        isPreviewPaused: previewingSection?.id == section.id && isPreviewPaused,
+                        playheadTime: previewingSection?.id == section.id ? previewPlayhead : nil,
+                        onSectionChange: { updated in
+                            session.upsertSection(updated)
+                            recalibratePreview(for: updated)
+                        },
+                        onBlockChange: { updated in
+                            if let i = session.blocks.firstIndex(where: { $0.id == updated.id }) {
+                                session.blocks[i] = updated
                             }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                        },
+                        onDelete: {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                if previewingSection?.id == section.id { stopPreview() }
+                                session.removeSection(id: section.id)
+                            }
+                        },
+                        onDuplicate: { duplicateSection(section) },
+                        onPreview: { togglePreview(section) },
+                        onSeek: { time in seekPreview(section: section, to: time) }
+                    )
                 }
-                .padding(.vertical, 12)
             }
         }
-        .ppCard()
     }
 
-    // MARK: - Timeline Overview
-
-    private var timelineOverview: some View {
-        VStack(spacing: 8) {
-            PPSectionHeader(title: "Track Timeline", subtitle: "All sections on the mix")
-
-            SectionTimelineView(
-                sections: session.sections,
-                totalDuration: session.mixDuration
+    private var addSectionButton: some View {
+        Button {
+            addSectionWithBlock()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .bold))
+                Text("ADD ANOTHER SECTION")
+                    .font(PPFonts.caption(12))
+                    .tracking(1.2)
+            }
+            .foregroundStyle(PPColors.accentYellow)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(PPColors.accentYellow.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
             )
         }
+        .buttonStyle(.plain)
+        .disabled(session.mix == nil)
     }
 
-    // MARK: - Sections List
-
-    private var sectionsList: some View {
-        VStack(spacing: 12) {
-            PPSectionHeader(title: "Section Markers", subtitle: "\(session.sections.count) sections defined")
-
-            ForEach(session.sections) { section in
-                BuilderSectionCard(
-                    section: section,
-                    maxDuration: max(session.mixDuration, 1),
-                    waveformSamples: waveformSamples,
-                    isPreviewing: previewingSection?.id == section.id,
-                    playheadTime: previewingSection?.id == section.id ? previewPlayhead : nil,
-                    onChange: { updated in
-                        session.upsertSection(updated)
-                    },
-                    onDelete: {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            session.removeSection(id: section.id)
-                        }
-                    },
-                    onAddBlock: {
-                        withAnimation(.spring(response: 0.35)) {
-                            session.addBlock(for: section)
-                        }
-                    },
-                    onPreview: {
-                        previewSection(section)
-                    },
-                    onSeek: { time in seekPreview(section: section, to: time) },
-                    onDuplicate: {
-                        duplicateSection(section)
-                    }
-                )
-            }
-
-            Button {
-                withAnimation(.spring(response: 0.35)) {
-                    session.addSection(PracticeSection.blank(totalDuration: max(session.mixDuration, 32)))
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Add Section")
-                }
-                .font(PPFonts.headline(14))
+    private var totalTimeSummary: some View {
+        VStack(spacing: 6) {
+            Text("TOTAL PRACTICE TIME")
+                .font(PPFonts.caption(11))
+                .tracking(1.4)
+                .foregroundStyle(PPColors.textTertiary)
+            Text(Formatters.clock(session.totalEstimatedDuration))
+                .font(PPFonts.monoLarge(28))
                 .foregroundStyle(PPColors.accentYellow)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(PPColors.accentYellow.opacity(0.3), lineWidth: 1, antialiased: true)
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(session.mix == nil && session.mixDuration == 0)
         }
-    }
-
-    // MARK: - Blocks Overview
-
-    private var blocksOverview: some View {
-        VStack(spacing: 12) {
-            PPSectionHeader(title: "Practice Blocks", subtitle: "\(session.blocks.count) blocks • \(Formatters.clock(session.totalEstimatedDuration)) total")
-
-            ForEach($session.blocks) { $block in
-                BuilderBlockCard(block: $block, onDelete: {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        session.blocks.removeAll { $0.id == block.id }
-                    }
-                }, onDuplicate: {
-                    duplicateBlock(block)
-                })
-            }
-        }
-    }
-
-    // MARK: - Practice Time Summary
-
-    private var practiceTimeSummary: some View {
-        VStack(spacing: 12) {
-            PPSectionHeader(title: "Time Breakdown")
-
-            VStack(spacing: 1) {
-                ForEach(session.blocks) { block in
-                    HStack {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(block.section.type.accentColor)
-                            .frame(width: 4, height: 20)
-
-                        Text(block.title)
-                            .font(PPFonts.mono(13))
-                            .foregroundStyle(PPColors.textSecondary)
-
-                        Spacer()
-
-                        // Breakdown
-                        HStack(spacing: 6) {
-                            timeBreakdownPill("play", value: Formatters.clock(block.section.duration * Double(block.reps)))
-                            timeBreakdownPill("rest", value: Formatters.clock(Double(max(block.reps - 1, 0) * block.restSeconds)))
-                            timeBreakdownPill("lead", value: Formatters.clock(Double(block.reps * block.leadInSeconds)))
-                        }
-
-                        Text(Formatters.clock(block.estimatedDuration))
-                            .font(PPFonts.mono(13))
-                            .foregroundStyle(PPColors.textPrimary)
-                            .frame(width: 44, alignment: .trailing)
-                    }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 16)
-                }
-
-                Divider().background(PPColors.cardBorder)
-
-                HStack {
-                    Text("TOTAL")
-                        .font(PPFonts.caption(11))
-                        .tracking(1.0)
-                        .foregroundStyle(PPColors.textTertiary)
-
-                    Spacer()
-
-                    Text(Formatters.clock(session.totalEstimatedDuration))
-                        .font(PPFonts.monoLarge(20))
-                        .foregroundStyle(PPColors.accentYellow)
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 16)
-            }
-            .background(RoundedRectangle(cornerRadius: 14).fill(PPColors.card))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-        }
-    }
-
-    private func timeBreakdownPill(_ label: String, value: String) -> some View {
-        Text("\(label) \(value)")
-            .font(PPFonts.caption(9))
-            .foregroundStyle(PPColors.textTertiary)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(Color.white.opacity(0.05)))
-    }
-
-    // MARK: - CTA Bar
-
-    private var ctaBar: some View {
-        VStack(spacing: 0) {
-            LinearGradient(
-                colors: [PPColors.background.opacity(0), PPColors.background],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 30)
-
-            VStack(spacing: 8) {
-                PPPrimaryButton("Start Practicing", icon: "play.fill") {
-                    onResetRun()
-                }
-
-                Text("Saves loop, then enters live mode")
-                    .font(PPFonts.caption(11))
-                    .foregroundStyle(PPColors.textTertiary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            .background(PPColors.background)
-        }
-        .opacity(session.blocks.isEmpty ? 0.4 : 1.0)
-        .allowsHitTesting(!session.blocks.isEmpty)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4)
     }
 
     // MARK: - Actions
@@ -405,35 +414,110 @@ struct PracticeBuilderView: View {
         session.mix = savedMix.mix
         session.sections = savedMix.sections
         session.blocks = []
+        hasFirstSectionSaved = !savedMix.sections.isEmpty
+        if hasFirstSectionSaved {
+            ensureBlocksForAllSections()
+        }
+    }
+
+    private func ensureBlocksForAllSections() {
+        for section in session.sections where !session.blocks.contains(where: { $0.section.id == section.id }) {
+            session.addBlock(for: section)
+        }
+    }
+
+    private func addSectionWithBlock() {
+        let newSection = PracticeSection.blank(totalDuration: max(session.mixDuration, 32))
+        withAnimation(.spring(response: 0.35)) {
+            session.addSection(newSection)
+            if let added = session.sections.first(where: { $0.id == newSection.id }) {
+                session.addBlock(for: added)
+            }
+        }
     }
 
     private func previewSection(_ section: PracticeSection) {
         seekPreview(section: section, to: section.startTime)
     }
 
+    private func togglePreview(_ section: PracticeSection) {
+        guard previewingSection?.id == section.id else {
+            previewSection(section)
+            return
+        }
+        if isPreviewPaused {
+            let remaining = max(section.endTime - audioEngine.currentTime, 0.1)
+            audioEngine.resumeUntil(remainingDuration: remaining)
+            isPreviewPaused = false
+            startPreviewPollTimer()
+            scheduleEndTask(after: remaining, section: section)
+        } else {
+            audioEngine.pause()
+            isPreviewPaused = true
+            stopPreviewPollTimer()
+            previewEndTask?.cancel()
+            previewEndTask = nil
+        }
+    }
+
+    private func stopPreview() {
+        audioEngine.pause()
+        previewEndTask?.cancel()
+        previewEndTask = nil
+        previewingSection = nil
+        isPreviewPaused = false
+        stopPreviewPollTimer()
+    }
+
     private func seekPreview(section: PracticeSection, to time: TimeInterval) {
         guard let mix = session.mix else { return }
+        let upperBound = max(section.endTime - 0.1, section.startTime)
+        let clamped = min(max(time, section.startTime), upperBound)
         do {
-            try previewEngine.load(url: mix.localURL)
-            let endTime = section.endTime
-            previewEngine.playSegment(startTime: time, endTime: endTime)
-            previewPlayhead = time
+            try audioEngine.load(url: mix.localURL)
+            audioEngine.playSegment(startTime: clamped, endTime: section.endTime)
+            previewPlayhead = clamped
             previewingSection = section
+            isPreviewPaused = false
             startPreviewPollTimer()
-            let remaining = max(endTime - time, 0.1)
-            DispatchQueue.main.asyncAfter(deadline: .now() + remaining) {
-                if self.previewingSection?.id == section.id {
-                    self.previewingSection = nil
-                    self.stopPreviewPollTimer()
-                }
-            }
+            scheduleEndTask(after: max(section.endTime - clamped, 0.1), section: section)
         } catch {}
+    }
+
+    private func recalibratePreview(for section: PracticeSection) {
+        guard previewingSection?.id == section.id, !isPreviewPaused else { return }
+        let current = audioEngine.currentTime
+        if current >= section.endTime - 0.05 {
+            stopPreview()
+            return
+        }
+        var playheadTarget = current
+        if current < section.startTime {
+            playheadTarget = section.startTime
+            audioEngine.seek(to: playheadTarget)
+            previewPlayhead = playheadTarget
+        }
+        let remaining = max(section.endTime - playheadTarget, 0.1)
+        audioEngine.rescheduleStop(remainingDuration: remaining)
+        scheduleEndTask(after: remaining, section: section)
+    }
+
+    private func scheduleEndTask(after delay: TimeInterval, section: PracticeSection) {
+        previewEndTask?.cancel()
+        let task = DispatchWorkItem {
+            guard self.previewingSection?.id == section.id else { return }
+            self.previewingSection = nil
+            self.isPreviewPaused = false
+            self.stopPreviewPollTimer()
+        }
+        previewEndTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: task)
     }
 
     private func startPreviewPollTimer() {
         stopPreviewPollTimer()
         previewPollTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            Task { @MainActor in self.previewPlayhead = self.previewEngine.currentTime }
+            Task { @MainActor in self.previewPlayhead = self.audioEngine.currentTime }
         }
     }
 
@@ -443,8 +527,7 @@ struct PracticeBuilderView: View {
     }
 
     private func duplicateSection(_ section: PracticeSection) {
-        var newSection = section
-        newSection = PracticeSection(
+        let newSection = PracticeSection(
             id: UUID(),
             name: "\(section.name) Copy",
             type: section.type,
@@ -453,21 +536,9 @@ struct PracticeBuilderView: View {
         )
         withAnimation(.spring(response: 0.35)) {
             session.addSection(newSection)
-        }
-    }
-
-    private func duplicateBlock(_ block: PracticeBlock) {
-        let newBlock = PracticeBlock(
-            id: UUID(),
-            title: "\(block.title) Copy",
-            section: block.section,
-            reps: block.reps,
-            restSeconds: block.restSeconds,
-            leadInSeconds: block.leadInSeconds,
-            restartMode: block.restartMode
-        )
-        withAnimation(.spring(response: 0.35)) {
-            session.blocks.append(newBlock)
+            if let added = session.sections.first(where: { $0.id == newSection.id }) {
+                session.addBlock(for: added)
+            }
         }
     }
 
@@ -497,9 +568,10 @@ struct PracticeBuilderView: View {
                 let importedMix = try await MixImportService().importMix(from: selectedURL)
                 await MainActor.run {
                     session.attachMix(importedMix)
-                    if session.sections.isEmpty {
-                        session.addSection(PracticeSection.blank(totalDuration: importedMix.duration))
-                    }
+                    session.sections = []
+                    session.blocks = []
+                    session.addSection(PracticeSection.blank(totalDuration: importedMix.duration))
+                    hasFirstSectionSaved = false
                 }
             } catch {
                 await MainActor.run {
@@ -510,196 +582,271 @@ struct PracticeBuilderView: View {
     }
 }
 
-// MARK: - Section Timeline View
+// MARK: - Program Section Card (Step 3)
 
-private struct SectionTimelineView: View {
-    let sections: [PracticeSection]
-    let totalDuration: TimeInterval
-
-    var body: some View {
-        VStack(spacing: 6) {
-            GeometryReader { geo in
-                let w = geo.size.width
-
-                ZStack(alignment: .leading) {
-                    // Track background
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(PPColors.card)
-
-                    // Section markers
-                    ForEach(sections) { section in
-                        let startFrac = totalDuration > 0 ? section.startTime / totalDuration : 0
-                        let endFrac = totalDuration > 0 ? section.endTime / totalDuration : 1
-                        let x = CGFloat(startFrac) * w
-                        let barWidth = max(CGFloat(endFrac - startFrac) * w, 2)
-
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(section.type.accentColor.opacity(0.6))
-                            .frame(width: barWidth, height: 24)
-                            .offset(x: x)
-                    }
-                }
-            }
-            .frame(height: 28)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-
-            // Time labels
-            HStack {
-                Text("0:00")
-                Spacer()
-                Text(Formatters.clock(totalDuration / 2))
-                Spacer()
-                Text(Formatters.clock(totalDuration))
-            }
-            .font(PPFonts.mono(10))
-            .foregroundStyle(PPColors.textTertiary)
-        }
-        .ppCard()
-    }
-}
-
-// MARK: - Section Editor Card
-
-private struct BuilderSectionCard: View {
+private struct ProgramSectionCard: View {
+    let index: Int
     let section: PracticeSection
+    let block: PracticeBlock
     let maxDuration: TimeInterval
     let waveformSamples: [Float]
     let isPreviewing: Bool
+    let isPreviewPaused: Bool
     var playheadTime: TimeInterval?
-    let onChange: (PracticeSection) -> Void
+    let onSectionChange: (PracticeSection) -> Void
+    let onBlockChange: (PracticeBlock) -> Void
     let onDelete: () -> Void
-    let onAddBlock: () -> Void
-    let onPreview: () -> Void
-    var onSeek: ((TimeInterval) -> Void)?
     let onDuplicate: () -> Void
+    let onPreview: () -> Void
+    let onSeek: (TimeInterval) -> Void
+
+    private var numberLabel: String {
+        String(format: "%02d", index + 1)
+    }
+
+    private var isActivelyPlaying: Bool {
+        isPreviewing && !isPreviewPaused
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Header row
-            HStack {
-                PPPill(text: section.type.label, color: section.type.accentColor, textColor: .black)
+        VStack(spacing: 16) {
+            header
+            waveform
+            TrimTimeLabelsView(startTime: section.startTime, endTime: section.endTime)
+            previewControl
+            stepperTrio
+            restartPicker
+            estimatedDuration
+        }
+        .padding(18)
+        .background(RoundedRectangle(cornerRadius: 18).fill(PPColors.card))
+    }
 
-                if isPreviewing {
-                    PPPill(text: "Playing", color: PPColors.success, textColor: .black)
-                }
+    private var header: some View {
+        HStack(spacing: 10) {
+            Text(numberLabel)
+                .font(PPFonts.monoLarge(20))
+                .foregroundStyle(PPColors.accentYellow)
 
-                Spacer()
-
-                // Preview button
-                Button { onPreview() } label: {
-                    Image(systemName: isPreviewing ? "speaker.wave.2.fill" : "play.circle")
-                        .font(.system(size: 18))
-                        .foregroundStyle(isPreviewing ? PPColors.success : PPColors.textTertiary)
-                }
-                .buttonStyle(.plain)
-
-                Menu {
-                    Button { onAddBlock() } label: {
-                        Label("Add Block", systemImage: "plus.square.on.square")
-                    }
-                    Button { onDuplicate() } label: {
-                        Label("Duplicate", systemImage: "doc.on.doc")
-                    }
-                    Button(role: .destructive) { onDelete() } label: {
-                        Label("Delete Section", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(PPColors.textTertiary)
-                        .frame(width: 32, height: 32)
-                }
-            }
-
-            // Name field
             TextField(
-                "Section Name",
+                "Section name",
                 text: Binding(
                     get: { section.name },
                     set: { newValue in
                         var updated = section
                         updated.name = newValue
-                        onChange(updated)
+                        onSectionChange(updated)
                     }
                 )
             )
-            .font(PPFonts.headline())
+            .font(PPFonts.headline(17))
             .foregroundStyle(PPColors.textPrimary)
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.06)))
 
-            // Type picker
-            Picker(
-                "Type",
-                selection: Binding(
-                    get: { section.type },
+            Menu {
+                Picker(
+                    "Type",
+                    selection: Binding(
+                        get: { section.type },
+                        set: { newValue in
+                            var updated = section
+                            updated.type = newValue
+                            onSectionChange(updated)
+                        }
+                    )
+                ) {
+                    ForEach(PracticeSection.SectionType.allCases, id: \.self) { type in
+                        Label(type.label, systemImage: type.icon).tag(type)
+                    }
+                }
+                Divider()
+                Button { onDuplicate() } label: {
+                    Label("Duplicate", systemImage: "doc.on.doc")
+                }
+                Button(role: .destructive) { onDelete() } label: {
+                    Label("Delete Section", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(PPColors.textTertiary)
+                    .frame(width: 32, height: 32)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var waveform: some View {
+        if waveformSamples.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                timeSlider(label: "Start", value: section.startTime) { newValue in
+                    var updated = section
+                    updated.startTime = min(newValue, updated.endTime)
+                    onSectionChange(updated)
+                }
+                timeSlider(label: "End", value: section.endTime) { newValue in
+                    var updated = section
+                    updated.endTime = max(newValue, updated.startTime)
+                    onSectionChange(updated)
+                }
+            }
+        } else {
+            WaveformTrimmerView(
+                samples: waveformSamples,
+                duration: maxDuration,
+                startTime: Binding(
+                    get: { section.startTime },
                     set: { newValue in
                         var updated = section
-                        updated.type = newValue
-                        onChange(updated)
+                        updated.startTime = newValue
+                        onSectionChange(updated)
                     }
-                )
-            ) {
-                ForEach(PracticeSection.SectionType.allCases, id: \.self) { type in
-                    Label(type.label, systemImage: type.icon).tag(type)
-                }
-            }
-            .pickerStyle(.menu)
-            .tint(PPColors.accentYellow)
-
-            // Waveform or sliders
-            if waveformSamples.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    timeSlider(label: "Start", value: section.startTime) { newValue in
+                ),
+                endTime: Binding(
+                    get: { section.endTime },
+                    set: { newValue in
                         var updated = section
-                        updated.startTime = min(newValue, updated.endTime)
-                        onChange(updated)
+                        updated.endTime = newValue
+                        onSectionChange(updated)
                     }
-                    timeSlider(label: "End", value: section.endTime) { newValue in
-                        var updated = section
-                        updated.endTime = max(newValue, updated.startTime)
-                        onChange(updated)
-                    }
-                }
-            } else {
-                VStack(spacing: 6) {
-                    WaveformTrimmerView(
-                        samples: waveformSamples,
-                        duration: maxDuration,
-                        startTime: Binding(
-                            get: { section.startTime },
-                            set: { newValue in
-                                var updated = section
-                                updated.startTime = newValue
-                                onChange(updated)
-                            }
-                        ),
-                        endTime: Binding(
-                            get: { section.endTime },
-                            set: { newValue in
-                                var updated = section
-                                updated.endTime = newValue
-                                onChange(updated)
-                            }
-                        ),
-                        playheadTime: playheadTime,
-                        onSeek: onSeek
-                    )
-
-                    TrimTimeLabelsView(startTime: section.startTime, endTime: section.endTime)
-                }
-            }
-
-            // Duration badge
-            HStack(spacing: 6) {
-                Image(systemName: "clock")
-                    .font(.system(size: 11))
-                Text("Duration: \(Formatters.clock(section.duration))")
-                    .font(PPFonts.mono(12))
-            }
-            .foregroundStyle(PPColors.textTertiary)
+                ),
+                playheadTime: playheadTime,
+                onSeek: onSeek
+            )
         }
-        .ppCard()
+    }
+
+    private var previewControl: some View {
+        let icon = isActivelyPlaying ? "pause.fill" : "play.fill"
+        let label = isPreviewing
+            ? (isActivelyPlaying ? "PAUSE" : "RESUME")
+            : "PREVIEW SECTION"
+
+        return Button(action: onPreview) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [PPColors.accentYellow, PPColors.accentOrange],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 52, height: 52)
+                        .shadow(color: PPColors.accentOrange.opacity(0.35), radius: 12, x: 0, y: 5)
+
+                    Image(systemName: icon)
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundStyle(.black)
+                        .offset(x: isActivelyPlaying ? 0 : 1.5)
+                }
+
+                Text(label)
+                    .font(PPFonts.caption(12))
+                    .tracking(1.4)
+                    .foregroundStyle(PPColors.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var stepperTrio: some View {
+        HStack(spacing: 10) {
+            substantialStepper(label: "REPS", value: block.reps, range: 1...12, step: 1, suffix: "") { newVal in
+                var u = block
+                u.reps = newVal
+                onBlockChange(u)
+            }
+            substantialStepper(label: "REST", value: block.restSeconds, range: 0...180, step: 5, suffix: "s") { newVal in
+                var u = block
+                u.restSeconds = newVal
+                onBlockChange(u)
+            }
+        }
+    }
+
+    private var restartPicker: some View {
+        Picker(
+            "Restart",
+            selection: Binding(
+                get: { block.restartMode },
+                set: { newVal in
+                    var u = block
+                    u.restartMode = newVal
+                    onBlockChange(u)
+                }
+            )
+        ) {
+            ForEach(PracticeBlock.RestartMode.allCases, id: \.self) { mode in
+                Text(mode.rawValue.capitalized).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    private var estimatedDuration: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "timer")
+                .font(.system(size: 11))
+            Text("Est: \(Formatters.clock(block.estimatedDuration))")
+                .font(PPFonts.mono(12))
+        }
+        .foregroundStyle(PPColors.textTertiary)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func substantialStepper(label: String, value: Int, range: ClosedRange<Int>, step: Int, suffix: String, onChange: @escaping (Int) -> Void) -> some View {
+        VStack(spacing: 8) {
+            Text(label)
+                .font(PPFonts.caption(10))
+                .tracking(1.2)
+                .foregroundStyle(PPColors.textTertiary)
+
+            HStack(spacing: 8) {
+                Button {
+                    let newVal = value - step
+                    if newVal >= range.lowerBound { onChange(newVal) }
+                } label: {
+                    Image(systemName: "minus")
+                        .font(.system(size: 12, weight: .black))
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(Color.white.opacity(0.08)))
+                        .foregroundStyle(PPColors.textSecondary)
+                }
+                .buttonStyle(.plain)
+
+                Text("\(value)\(suffix)")
+                    .font(PPFonts.monoLarge(18))
+                    .foregroundStyle(PPColors.textPrimary)
+                    .frame(minWidth: 44)
+
+                Button {
+                    let newVal = value + step
+                    if newVal <= range.upperBound { onChange(newVal) }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .black))
+                        .frame(width: 30, height: 30)
+                        .background(Circle().fill(Color.white.opacity(0.08)))
+                        .foregroundStyle(PPColors.textSecondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
     }
 
     private func timeSlider(label: String, value: TimeInterval, onChange: @escaping (TimeInterval) -> Void) -> some View {
@@ -719,122 +866,6 @@ private struct BuilderSectionCard: View {
     }
 }
 
-// MARK: - Block Card
-
-private struct BuilderBlockCard: View {
-    @Binding var block: PracticeBlock
-    let onDelete: () -> Void
-    let onDuplicate: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                TextField("Block Title", text: $block.title)
-                    .font(PPFonts.headline())
-                    .foregroundStyle(PPColors.textPrimary)
-
-                Spacer()
-
-                Menu {
-                    Button { onDuplicate() } label: {
-                        Label("Duplicate", systemImage: "doc.on.doc")
-                    }
-                    Button(role: .destructive) { onDelete() } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(PPColors.textTertiary)
-                        .frame(width: 32, height: 32)
-                }
-            }
-
-            HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(block.section.type.accentColor)
-                    .frame(width: 4, height: 16)
-
-                Text(block.section.name)
-                    .font(PPFonts.mono())
-                    .foregroundStyle(PPColors.textTertiary)
-
-                Text("•")
-                    .foregroundStyle(PPColors.textTertiary)
-
-                Text(Formatters.clock(block.section.startTime) + " → " + Formatters.clock(block.section.endTime))
-                    .font(PPFonts.mono())
-                    .foregroundStyle(PPColors.textTertiary)
-            }
-
-            // Steppers with custom styling
-            HStack(spacing: 12) {
-                compactStepper(label: "Reps", value: $block.reps, range: 1...12)
-                compactStepper(label: "Rest", value: $block.restSeconds, range: 0...180, step: 5, suffix: "s")
-                compactStepper(label: "Lead-in", value: $block.leadInSeconds, range: 0...32, suffix: "s")
-            }
-
-            Picker("Restart", selection: $block.restartMode) {
-                ForEach(PracticeBlock.RestartMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue.capitalized).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            HStack {
-                Image(systemName: "timer")
-                    .font(.system(size: 12))
-                Text("Est: \(Formatters.clock(block.estimatedDuration))")
-                    .font(PPFonts.mono())
-            }
-            .foregroundStyle(PPColors.textTertiary)
-        }
-        .ppCard()
-    }
-
-    private func compactStepper(label: String, value: Binding<Int>, range: ClosedRange<Int>, step: Int = 1, suffix: String = "") -> some View {
-        VStack(spacing: 6) {
-            Text(label.uppercased())
-                .font(PPFonts.caption(10))
-                .tracking(0.8)
-                .foregroundStyle(PPColors.textTertiary)
-
-            HStack(spacing: 4) {
-                Button {
-                    let newVal = value.wrappedValue - step
-                    if newVal >= range.lowerBound { value.wrappedValue = newVal }
-                } label: {
-                    Image(systemName: "minus")
-                        .font(.system(size: 10, weight: .bold))
-                        .frame(width: 24, height: 24)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
-                        .foregroundStyle(PPColors.textSecondary)
-                }
-                .buttonStyle(.plain)
-
-                Text("\(value.wrappedValue)\(suffix)")
-                    .font(PPFonts.mono(14))
-                    .foregroundStyle(PPColors.textPrimary)
-                    .frame(minWidth: 32)
-
-                Button {
-                    let newVal = value.wrappedValue + step
-                    if newVal <= range.upperBound { value.wrappedValue = newVal }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .bold))
-                        .frame(width: 24, height: 24)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
-                        .foregroundStyle(PPColors.textSecondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.04)))
-    }
-}
 
 // MARK: - Section Type Extensions
 

@@ -86,7 +86,7 @@ final class CheerPracticePlayerTests: XCTestCase {
         XCTAssertFalse(session.blocks.contains(where: { $0.section.id == removedID }))
     }
 
-    func testBlockEstimatedDuration_IncludesRepsRestAndLeadIn() {
+    func testBlockEstimatedDuration_IncludesRepsAndRest() {
         let section = PracticeSection(
             id: UUID(),
             name: "Tumble",
@@ -100,11 +100,11 @@ final class CheerPracticePlayerTests: XCTestCase {
             section: section,
             reps: 5,
             restSeconds: 45,
-            leadInSeconds: 8,
             restartMode: .automatic
         )
 
-        XCTAssertEqual(block.estimatedDuration, 370, accuracy: 0.001)
+        // 5 reps * 30s section + 4 rest windows * 45s = 150 + 180 = 330
+        XCTAssertEqual(block.estimatedDuration, 330, accuracy: 0.001)
     }
 
     func testSessionTotalDuration_SumsBlocks() {
@@ -144,6 +144,7 @@ private final class FakeAudioPlayer: AudioPlaybackControlling {
     var playCallCount = 0
     var pauseCallCount = 0
     var currentTime: TimeInterval = 0
+    var rate: Float = 1.0
 
     func load(url: URL) throws {
         loadedURL = url
@@ -151,6 +152,10 @@ private final class FakeAudioPlayer: AudioPlaybackControlling {
 
     func playSegment(startTime: TimeInterval, endTime: TimeInterval) {
         seekTimes.append(startTime)
+        playCallCount += 1
+    }
+
+    func resumeUntil(remainingDuration: TimeInterval) {
         playCallCount += 1
     }
 

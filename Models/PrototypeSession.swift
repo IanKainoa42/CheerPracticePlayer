@@ -52,9 +52,8 @@ struct PrototypeSession: Identifiable, Equatable {
             guard block.section.id == normalized.id else { return block }
             var updated = block
             updated.section = normalized
-            if updated.title.isEmpty {
-                updated.title = normalized.name
-            }
+            // Block title mirrors section name — no separate editor exists for block.title yet.
+            updated.title = normalized.name
             return updated
         }
     }
@@ -73,11 +72,18 @@ struct PrototypeSession: Identifiable, Equatable {
                 section: normalizedSection,
                 reps: 3,
                 restSeconds: 30,
-                leadInSeconds: 8,
                 restartMode: .automatic
             )
         )
     }
+
+    static let empty = PrototypeSession(
+        id: UUID(),
+        teamName: "My Team",
+        mix: nil,
+        sections: [],
+        blocks: []
+    )
 
     static let sample: PrototypeSession = {
         let tumble = PracticeSection(
@@ -121,7 +127,6 @@ struct PrototypeSession: Identifiable, Equatable {
                     section: tumble,
                     reps: 5,
                     restSeconds: 45,
-                    leadInSeconds: 8,
                     restartMode: .automatic
                 ),
                 PracticeBlock(
@@ -130,7 +135,6 @@ struct PrototypeSession: Identifiable, Equatable {
                     section: pyramid,
                     reps: 4,
                     restSeconds: 60,
-                    leadInSeconds: 8,
                     restartMode: .manual
                 ),
                 PracticeBlock(
@@ -139,7 +143,6 @@ struct PrototypeSession: Identifiable, Equatable {
                     section: fullOut,
                     reps: 2,
                     restSeconds: 120,
-                    leadInSeconds: 16,
                     restartMode: .automatic
                 )
             ]

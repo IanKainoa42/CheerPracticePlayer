@@ -4,8 +4,18 @@ struct RootTabView: View {
     @Binding var session: PrototypeSession
     let controller: LiveSessionController
     let mixLibrary: MixLibraryStore
+    let audioEngine: AudioPlaybackEngine
 
-    @State private var selectedTab = 0
+    @State private var selectedTab: Int
+
+    init(session: Binding<PrototypeSession>, controller: LiveSessionController, mixLibrary: MixLibraryStore, audioEngine: AudioPlaybackEngine) {
+        self._session = session
+        self.controller = controller
+        self.mixLibrary = mixLibrary
+        self.audioEngine = audioEngine
+        // Onboarding: land on Build when there's no mix yet
+        self._selectedTab = State(initialValue: session.wrappedValue.mix == nil ? 1 : 0)
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -17,14 +27,11 @@ struct RootTabView: View {
             }
             .tag(0)
 
-            PracticeBuilderView(session: $session, mixLibrary: mixLibrary) {
-                controller.syncSession(session)
-                selectedTab = 2
-            }
-            .tabItem {
-                Label("Build", systemImage: "slider.horizontal.3")
-            }
-            .tag(1)
+            PracticeBuilderView(session: $session, mixLibrary: mixLibrary, audioEngine: audioEngine)
+                .tabItem {
+                    Label("Build", systemImage: "slider.horizontal.3")
+                }
+                .tag(1)
 
             LiveRunView(controller: controller)
                 .tabItem {
@@ -40,6 +47,9 @@ struct RootTabView: View {
         }
         .onChange(of: session) { _, newValue in
             controller.syncSession(newValue)
+        }
+        .onChange(of: selectedTab) { _, _ in
+            audioEngine.pause()
         }
     }
 

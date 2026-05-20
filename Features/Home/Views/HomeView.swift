@@ -307,7 +307,7 @@ struct HomeView: View {
                     .foregroundStyle(PPColors.textTertiary)
             }
 
-            Text("Run practice from your team's actual mix with automatic section repeats, timed breaks, lead-ins, and sync support.")
+            Text("Run practice from your team's actual mix with automatic section repeats, timed rest, and get-ready countdowns.")
                 .font(PPFonts.body(14))
                 .foregroundStyle(PPColors.textSecondary)
                 .lineSpacing(4)

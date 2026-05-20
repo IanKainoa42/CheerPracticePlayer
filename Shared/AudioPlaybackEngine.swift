@@ -3,8 +3,11 @@ import Foundation
 
 protocol AudioPlaybackControlling: AnyObject {
     var currentTime: TimeInterval { get }
+    /// Playback rate multiplier. 1.0 = normal speed. Setter applies immediately to current playback.
+    var rate: Float { get set }
     func load(url: URL) throws
     func playSegment(startTime: TimeInterval, endTime: TimeInterval)
+    func resumeUntil(remainingDuration: TimeInterval)
     func pause()
     func seek(to time: TimeInterval)
 }
@@ -13,8 +16,19 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
     private var player: AVAudioPlayer?
     private var loadedURL: URL?
     private var stopTask: DispatchWorkItem?
+    private var sessionConfigured = false
+    private var _rate: Float = 1.0
 
     var currentTime: TimeInterval { player?.currentTime ?? 0 }
+
+    var rate: Float {
+        get { _rate }
+        set {
+            let clamped = max(0.25, min(newValue, 3.0))
+            _rate = clamped
+            player?.rate = clamped
+        }
+    }
 
     func load(url: URL) throws {
         guard loadedURL != url else { return }
@@ -23,6 +37,8 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         player?.stop()
 
         let player = try AVAudioPlayer(contentsOf: url)
+        player.enableRate = true
+        player.rate = _rate
         player.prepareToPlay()
         self.player = player
         loadedURL = url
@@ -32,19 +48,29 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         guard let player else { return }
 
         stopTask?.cancel()
+        activateSession()
 
         let safeStart = max(startTime, 0)
         let safeEnd = max(endTime, safeStart)
         let duration = max(safeEnd - safeStart, 0)
 
         player.currentTime = safeStart
+        player.enableRate = true
+        player.rate = _rate
         player.play()
 
-        let task = DispatchWorkItem { [weak player] in
-            player?.pause()
-        }
-        stopTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: task)
+        scheduleAutoStop(after: duration)
+    }
+
+    func resumeUntil(remainingDuration: TimeInterval) {
+        guard let player else { return }
+
+        stopTask?.cancel()
+        activateSession()
+        player.enableRate = true
+        player.rate = _rate
+        player.play()
+        scheduleAutoStop(after: max(remainingDuration, 0))
     }
 
     func pause() {
@@ -52,7 +78,35 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         player?.pause()
     }
 
+    func rescheduleStop(remainingDuration: TimeInterval) {
+        stopTask?.cancel()
+        scheduleAutoStop(after: max(remainingDuration, 0))
+    }
+
     func seek(to time: TimeInterval) {
         player?.currentTime = time
+    }
+
+    private func scheduleAutoStop(after audioDuration: TimeInterval) {
+        guard audioDuration > 0 else { return }
+        let realDelay = audioDuration / Double(max(_rate, 0.01))
+        let task = DispatchWorkItem { [weak player] in
+            player?.pause()
+        }
+        stopTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + realDelay, execute: task)
+    }
+
+    private func activateSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            if !sessionConfigured {
+                try session.setCategory(.playback, mode: .default, options: [])
+                sessionConfigured = true
+            }
+            try session.setActive(true, options: [])
+        } catch {
+            // Non-fatal — AVAudioPlayer will still try to play.
+        }
     }
 }

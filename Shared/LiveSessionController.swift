@@ -12,12 +12,23 @@ final class LiveSessionController {
     private(set) var isScreenLocked = false
     private(set) var waveformSamples: [Float] = []
     private(set) var currentPlaybackTime: TimeInterval = 0
+    private(set) var isPaused = false
+    /// Cumulative reps attempted per block this session. Persists when the user jumps around.
+    private(set) var repsAttempted: [UUID: Int] = [:]
+    /// Playback rate multiplier. Mirrors the engine's rate so the UI can observe it.
+    private(set) var playbackRate: Float = 1.0
+
+    static let availablePlaybackRates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5]
+
+    /// Minimum fraction of a section that must be played before the rep counts as attempted.
+    static let repCompletionThreshold: Double = 0.75
 
     private let audioPlayer: AudioPlaybackControlling
     private var countdownTimer: Timer?
     private var sessionTimer: Timer?
     private var playbackEndTimer: Timer?
     private var playheadTimer: Timer?
+    private var currentSegmentEndTime: TimeInterval = 0
 
     init(session: PrototypeSession, audioPlayer: AudioPlaybackControlling = AudioPlaybackEngine()) {
         self.session = session
@@ -37,13 +48,61 @@ final class LiveSessionController {
         currentPlaybackTime = time
     }
 
+    // MARK: - Playback Rate
+
+    func cyclePlaybackRate() {
+        let rates = Self.availablePlaybackRates
+        let currentIndex = rates.firstIndex(where: { abs($0 - playbackRate) < 0.001 }) ?? rates.firstIndex(of: 1.0) ?? 0
+        let nextIndex = (currentIndex + 1) % rates.count
+        setPlaybackRate(rates[nextIndex])
+    }
+
+    func setPlaybackRate(_ rate: Float) {
+        playbackRate = rate
+        audioPlayer.rate = rate
+
+        // If currently playing a section, reschedule the auto-advance timer for the new rate.
+        if case .playing = runner.phase, !isPaused, playbackEndTimer != nil {
+            let remainingAudio = max(currentSegmentEndTime - audioPlayer.currentTime, 0)
+            let realDelay = remainingAudio / Double(max(rate, 0.01))
+            cancelPlaybackEnd()
+            if realDelay > 0 {
+                playbackEndTimer = Timer.scheduledTimer(withTimeInterval: realDelay, repeats: false) { [weak self] _ in
+                    Task { @MainActor in self?.onSectionPlaybackFinished() }
+                }
+            }
+        }
+    }
+
     // MARK: - Playback Controls
 
     func playCurrentBlock() {
+        if isPaused {
+            resumePlayback()
+            return
+        }
         guard prepareCurrentBlockForPlayback() else { return }
         runner.start()
         playCurrentSection()
         startSessionTimer()
+        keepScreenAwake(true)
+    }
+
+    func resumePlayback() {
+        guard isPaused else { return }
+        let remainingAudio = max(currentSegmentEndTime - audioPlayer.currentTime, 0)
+        audioPlayer.resumeUntil(remainingDuration: remainingAudio)
+        isPaused = false
+        cancelPlaybackEnd()
+        let realDelay = remainingAudio / Double(max(playbackRate, 0.01))
+        if realDelay > 0 {
+            playbackEndTimer = Timer.scheduledTimer(withTimeInterval: realDelay, repeats: false) { [weak self] _ in
+                Task { @MainActor in self?.onSectionPlaybackFinished() }
+            }
+        }
+        startPlayheadTimer()
+        startSessionTimer()
+        audioStatus = "Playing"
         keepScreenAwake(true)
     }
 
@@ -55,6 +114,7 @@ final class LiveSessionController {
     }
 
     func skipBlock() {
+        creditCurrentRepIfThresholdMet()
         stopCountdown()
         runner.skipBlock()
         guard runner.phase != .complete else {
@@ -79,6 +139,7 @@ final class LiveSessionController {
         stopCountdown()
         runner.jumpToBlock(index: index)
         audioPlayer.pause()
+        isPaused = false
         audioStatus = "Ready — \(runner.currentBlock?.title ?? "Block \(index + 1)")"
     }
 
@@ -86,7 +147,9 @@ final class LiveSessionController {
         stopCountdown()
         cancelPlaybackEnd()
         stopPlayheadTimer()
+        stopSessionTimer()
         audioPlayer.pause()
+        isPaused = true
         audioStatus = "Paused"
     }
 
@@ -98,12 +161,28 @@ final class LiveSessionController {
         startCountdown()
     }
 
-    func beginLeadIn() {
+    /// Tapping/scrubbing the timeline selects a block by index and starts playback from the
+    /// beginning of its section. Prevents scrubbing to arbitrary times outside programmed sections.
+    func selectBlock(at index: Int) {
+        guard session.blocks.indices.contains(index) else { return }
+        creditCurrentRepIfThresholdMet()
+        stopCountdown()
         cancelPlaybackEnd()
-        audioPlayer.pause()
-        runner.beginLeadIn()
-        audioStatus = phaseDescription
-        startCountdown()
+        runner.jumpToBlock(index: index)
+        guard prepareCurrentBlockForPlayback() else { return }
+        runner.start()
+        playCurrentSection()
+        startSessionTimer()
+        keepScreenAwake(true)
+    }
+
+    /// Fast-forward through an active break and immediately start the next rep.
+    func skipBreak() {
+        stopCountdown()
+        cancelPlaybackEnd()
+        runner.completeBreak()
+        guard prepareCurrentBlockForPlayback() else { return }
+        playCurrentSection()
     }
 
     func resetSession() {
@@ -113,17 +192,21 @@ final class LiveSessionController {
         cancelPlaybackEnd()
         audioPlayer.pause()
         runner.resetSession()
+        isPaused = false
         elapsedSessionTime = 0
         currentPlaybackTime = 0
+        repsAttempted.removeAll()
         audioStatus = "Ready"
         keepScreenAwake(false)
     }
 
     // MARK: - Auto-Advance Flow
 
-    /// Called when a section finishes playing. Triggers the rep → break → lead-in → next rep flow.
+    /// Called when a section finishes playing. Triggers the rep → rest → next rep flow.
     private func onSectionPlaybackFinished() {
         guard runner.phase == .playing else { return }
+        // Credit the rep only if at least the threshold fraction of the section played.
+        creditCurrentRepIfThresholdMet()
         runner.finishRep()
 
         switch runner.phase {
@@ -131,12 +214,8 @@ final class LiveSessionController {
             audioStatus = phaseDescription
             startCountdown()
 
-        case .leadIn:
-            audioStatus = phaseDescription
-            startCountdown()
-
         case .playing:
-            // No break or lead-in needed — play next rep immediately
+            // No rest needed — play next rep immediately
             playCurrentSection()
 
         case .complete:
@@ -148,6 +227,19 @@ final class LiveSessionController {
 
         case .idle:
             break
+        }
+    }
+
+    /// Credit the in-progress rep if the section has played past the completion threshold.
+    /// Called on natural section completion and when the user navigates away mid-rep.
+    private func creditCurrentRepIfThresholdMet() {
+        guard case .playing = runner.phase else { return }
+        guard let block = runner.currentBlock else { return }
+        let sectionDuration = block.section.duration
+        guard sectionDuration > 0 else { return }
+        let playedAudio = audioPlayer.currentTime - block.section.startTime
+        if playedAudio >= Self.repCompletionThreshold * sectionDuration {
+            repsAttempted[block.id, default: 0] += 1
         }
     }
 
@@ -224,6 +316,9 @@ final class LiveSessionController {
         guard let block = runner.currentBlock else { return }
         cancelPlaybackEnd()
 
+        currentSegmentEndTime = block.section.endTime
+        isPaused = false
+
         audioPlayer.playSegment(
             startTime: block.section.startTime,
             endTime: block.section.endTime
@@ -233,8 +328,9 @@ final class LiveSessionController {
 
         // Schedule auto-advance when the section finishes playing
         let sectionDuration = block.section.duration
-        if sectionDuration > 0 {
-            playbackEndTimer = Timer.scheduledTimer(withTimeInterval: sectionDuration, repeats: false) { [weak self] _ in
+        let realDelay = sectionDuration / Double(max(playbackRate, 0.01))
+        if realDelay > 0 {
+            playbackEndTimer = Timer.scheduledTimer(withTimeInterval: realDelay, repeats: false) { [weak self] _ in
                 Task { @MainActor in
                     self?.onSectionPlaybackFinished()
                 }
@@ -297,9 +393,10 @@ final class LiveSessionController {
             }
             return "Playing"
         case .breakCountdown(let secondsRemaining):
-            return "Break: \(secondsRemaining)s remaining"
-        case .leadIn(let secondsRemaining):
-            return "Lead-In: \(secondsRemaining)s"
+            if secondsRemaining <= PracticeBlock.countdownTailSeconds {
+                return "Get ready: \(secondsRemaining)"
+            }
+            return "Rest: \(secondsRemaining)s"
         case .complete:
             return "Session complete"
         }

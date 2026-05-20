@@ -21,7 +21,11 @@ struct LiveRunView: View {
                 if controller.runner.currentBlock != nil {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
-                            Button { controller.resetSession() } label: {
+                            Button { controller.restartBlock() } label: {
+                                Label("Restart This Block", systemImage: "arrow.uturn.backward")
+                            }
+                            Divider()
+                            Button(role: .destructive) { controller.resetSession() } label: {
                                 Label("Reset Session", systemImage: "arrow.counterclockwise")
                             }
                         } label: {
@@ -38,40 +42,20 @@ struct LiveRunView: View {
     // MARK: - Active Session
 
     private func activeSessionView(block: PracticeBlock) -> some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Step progress
-                    PPStepProgress(
-                        steps: ["Trim section", "Arm cue", "Run repeats"],
-                        activeIndex: stepIndex
-                    )
-                    .padding(.top, 8)
+        VStack(spacing: 14) {
+            // Countdown ring (only during break)
+            countdownDisplay
+                .padding(.top, 4)
 
-                    // Session progress bar
-                    sessionProgressBar
+            // Hero play/pause button — primary control, centered.
+            heroPlayButton
 
-                    // Hero header
-                    heroSection(block: block)
+            // Compact cue card (phase, pips, block title)
+            cueStatusCard(block: block)
 
-                    // Countdown display (when applicable)
-                    countdownDisplay
-
-                    // Live cue card
-                    cueStatusCard(block: block)
-
-                    // Metrics row
-                    metricsRow(block: block)
-
-                    // Block queue
-                    blockQueueSection
-
-                    // Controls
-                    controlsSection(block: block)
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 120)
-            }
+            // Block queue takes the remaining flexible vertical space
+            blockQueueSection
+                .frame(maxHeight: .infinity, alignment: .top)
 
             // Global timeline strip
             if !controller.waveformSamples.isEmpty {
@@ -79,104 +63,45 @@ struct LiveRunView: View {
                     samples: controller.waveformSamples,
                     mixDuration: controller.session.mixDuration,
                     currentTime: controller.currentPlaybackTime,
-                    sections: controller.session.sections,
-                    activeSection: block.section,
-                    onSeek: { controller.seek(to: $0) }
+                    blocks: controller.session.blocks,
+                    activeBlockIndex: controller.runner.currentBlockIndex,
+                    onSelectBlock: { controller.selectBlock(at: $0) }
                 )
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
-                .padding(.bottom, 4)
-                .background(PPColors.background)
             }
 
-            // Bottom action bar
+            // Bottom action bar — speed control only (main action handled by hero button).
             bottomActionBar
         }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 
-    // MARK: - Step Index
+    // MARK: - Hero Play Button
 
-    private var stepIndex: Int {
-        switch controller.runner.phase {
-        case .idle: return 1
-        case .leadIn: return 1
-        case .playing: return 2
-        case .breakCountdown: return 2
-        case .complete: return 2
-        }
-    }
-
-    // MARK: - Session Progress Bar
-
-    private var sessionProgressBar: some View {
-        VStack(spacing: 6) {
-            HStack {
-                Text("SESSION PROGRESS")
-                    .font(PPFonts.caption(10))
-                    .tracking(1.0)
-                    .foregroundStyle(PPColors.textTertiary)
-
-                Spacer()
-
-                Text("\(Int(controller.runner.sessionProgress * 100))%")
-                    .font(PPFonts.mono(12))
-                    .foregroundStyle(PPColors.accentYellow)
-            }
-
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(PPColors.cardBorder)
-
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(
-                            LinearGradient(
-                                colors: [PPColors.accentYellow, PPColors.accentOrange],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geo.size.width * controller.runner.sessionProgress)
-                        .animation(.easeInOut(duration: 0.4), value: controller.runner.sessionProgress)
+    private var heroPlayButton: some View {
+        Button(action: handleMainAction) {
+            ZStack {
+                if isActivePhase {
+                    Circle()
+                        .stroke(mainActionColor.opacity(0.45), lineWidth: 5)
+                        .frame(width: 112, height: 112)
+                        .scaleEffect(pulseScale)
+                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulseScale)
                 }
+                Circle()
+                    .fill(mainActionColor)
+                    .frame(width: 96, height: 96)
+                    .shadow(color: mainActionColor.opacity(0.4), radius: 14, x: 0, y: 4)
+                Image(systemName: mainActionIcon)
+                    .font(.system(size: 38, weight: .black))
+                    .foregroundStyle(mainActionForeground)
             }
-            .frame(height: 6)
-
-            HStack {
-                Text("Block \(controller.runner.currentBlockIndex + 1)/\(controller.runner.totalBlocks)")
-                    .font(PPFonts.mono(11))
-                    .foregroundStyle(PPColors.textTertiary)
-
-                Spacer()
-
-                Text("Elapsed: \(Formatters.clock(controller.elapsedSessionTime))")
-                    .font(PPFonts.mono(11))
-                    .foregroundStyle(PPColors.textTertiary)
-            }
+            .contentShape(Circle())
+            .frame(maxWidth: .infinity)
         }
-    }
-
-    // MARK: - Hero Section
-
-    private func heroSection(block: PracticeBlock) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Text(phaseHeroTitle)
-                    .font(PPFonts.hero(28))
-                    .foregroundStyle(PPColors.textPrimary)
-
-                PPPill(text: phaseStatusLabel, color: phaseStatusColor)
-            }
-
-            Text(block.title)
-                .font(PPFonts.title())
-                .foregroundStyle(PPColors.textSecondary)
-
-            Text("\(block.section.name) • \(Formatters.clock(block.section.startTime)) → \(Formatters.clock(block.section.endTime))")
-                .font(PPFonts.mono())
-                .foregroundStyle(PPColors.textTertiary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
+        .sensoryFeedback(.impact(weight: .medium), trigger: controller.runner.phase)
+        .onAppear { pulseScale = 1.15 }
     }
 
     // MARK: - Countdown Display
@@ -185,20 +110,12 @@ struct LiveRunView: View {
     private var countdownDisplay: some View {
         switch controller.runner.phase {
         case .breakCountdown(let seconds):
+            let isTail = seconds <= PracticeBlock.countdownTailSeconds
             CountdownRingView(
                 seconds: seconds,
                 total: controller.runner.currentBlock?.restSeconds ?? 1,
-                label: "BREAK",
-                color: PPColors.accentOrange
-            )
-            .transition(.scale.combined(with: .opacity))
-
-        case .leadIn(let seconds):
-            CountdownRingView(
-                seconds: seconds,
-                total: controller.runner.currentBlock?.leadInSeconds ?? 1,
-                label: "LEAD-IN",
-                color: PPColors.accentYellow
+                label: isTail ? "GET READY" : "REST",
+                color: isTail ? PPColors.accentYellow : PPColors.accentOrange
             )
             .transition(.scale.combined(with: .opacity))
 
@@ -210,148 +127,96 @@ struct LiveRunView: View {
     // MARK: - Cue Status Card
 
     private func cueStatusCard(block: PracticeBlock) -> some View {
-        VStack(spacing: 16) {
-            // Phase icon with pulsing ring
+        let accent = PPColors.blockColor(at: controller.runner.currentBlockIndex)
+        let attempted = controller.repsAttempted[block.id] ?? 0
+        let isComplete = controller.runner.phase == .complete
+
+        return HStack(spacing: 14) {
+            // Compact phase indicator (non-interactive — primary action is the hero button above).
             ZStack {
-                if isActivePhase {
-                    Circle()
-                        .stroke(phaseStatusColor.opacity(0.3), lineWidth: 3)
-                        .frame(width: 72, height: 72)
-                        .scaleEffect(pulseScale)
-                        .animation(
-                            .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
-                            value: pulseScale
-                        )
-                }
-
                 Circle()
-                    .fill(phaseStatusColor.opacity(0.15))
-                    .frame(width: 60, height: 60)
-
+                    .fill(phaseStatusColor.opacity(0.18))
+                    .frame(width: 40, height: 40)
                 Image(systemName: phaseIcon)
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(phaseStatusColor)
             }
-            .onAppear { pulseScale = 1.15 }
 
-            Text(phaseLabel)
-                .font(PPFonts.headline(18))
-                .foregroundStyle(PPColors.textPrimary)
-
-            // Rep counter dots
-            HStack(spacing: 4) {
-                ForEach(1...block.reps, id: \.self) { rep in
-                    Circle()
-                        .fill(rep <= controller.runner.currentRep ? PPColors.accentYellow : PPColors.cardBorder)
-                        .frame(width: 10, height: 10)
-                        .animation(.spring(response: 0.3), value: controller.runner.currentRep)
+            // Center column: title + phase label + pips
+            VStack(alignment: .leading, spacing: 4) {
+                if !isComplete {
+                    Text(block.title)
+                        .font(PPFonts.headline(15))
+                        .foregroundStyle(PPColors.textPrimary)
+                        .lineLimit(1)
+                }
+                Text(phaseLabel)
+                    .font(PPFonts.headline(18))
+                    .foregroundStyle(PPColors.textPrimary)
+                if !isComplete {
+                    HStack(spacing: 4) {
+                        ForEach(1...block.reps, id: \.self) { rep in
+                            Circle()
+                                .fill(rep <= attempted ? accent : PPColors.cardBorder)
+                                .frame(width: 9, height: 9)
+                                .animation(.spring(response: 0.3), value: attempted)
+                        }
+                        Text("\(attempted)/\(block.reps)")
+                            .font(PPFonts.mono(11))
+                            .foregroundStyle(PPColors.textSecondary)
+                            .padding(.leading, 4)
+                    }
                 }
             }
 
-            Text("Rep \(max(controller.runner.currentRep, 1)) of \(block.reps)")
-                .font(PPFonts.mono())
-                .foregroundStyle(PPColors.textSecondary)
+            Spacer()
 
-            // Audio status
-            Text(controller.audioStatus)
-                .font(PPFonts.mono(11))
-                .foregroundStyle(PPColors.textTertiary)
-                .lineLimit(1)
+            // Right column: rest seconds + mode (compact)
+            if !isComplete {
+                VStack(alignment: .trailing, spacing: 4) {
+                    Label("\(block.restSeconds)s", systemImage: "timer")
+                        .font(PPFonts.mono(12))
+                        .foregroundStyle(PPColors.accentOrange)
+                    Label(block.restartMode == .automatic ? "Auto" : "Manual",
+                          systemImage: block.restartMode == .automatic ? "repeat" : "hand.tap")
+                        .font(PPFonts.mono(11))
+                        .foregroundStyle(PPColors.textTertiary)
+                }
+            }
         }
+        .padding(14)
         .frame(maxWidth: .infinity)
-        .ppCard(highlighted: isActivePhase)
-    }
-
-    // MARK: - Metrics
-
-    private func metricsRow(block: PracticeBlock) -> some View {
-        HStack(spacing: 12) {
-            PPMetricCard(
-                label: "Rest",
-                value: "\(block.restSeconds)s",
-                icon: "timer",
-                accentColor: PPColors.accentOrange
-            )
-
-            PPMetricCard(
-                label: "Lead-In",
-                value: "\(block.leadInSeconds)s",
-                icon: "metronome",
-                accentColor: PPColors.accentYellow
-            )
-
-            PPMetricCard(
-                label: "Mode",
-                value: block.restartMode == .automatic ? "Auto" : "Man",
-                icon: block.restartMode == .automatic ? "repeat" : "hand.tap",
-                accentColor: PPColors.textSecondary
-            )
-        }
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isActivePhase ? PPColors.cardHighlight : PPColors.card)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(PPColors.cardBorder, lineWidth: 1)
+        )
     }
 
     // MARK: - Block Queue
 
     private var blockQueueSection: some View {
-        VStack(spacing: 12) {
-            PPSectionHeader(title: "Block Queue", subtitle: "\(controller.runner.totalRepsCompleted)/\(controller.runner.totalReps) total reps")
+        let totalAttempted = controller.session.blocks.reduce(0) { $0 + (controller.repsAttempted[$1.id] ?? 0) }
+        return VStack(spacing: 12) {
+            PPSectionHeader(
+                title: "Block Queue",
+                subtitle: "\(totalAttempted)/\(controller.runner.totalReps) reps attempted • tap to jump"
+            )
 
             VStack(spacing: 2) {
                 ForEach(Array(controller.session.blocks.enumerated()), id: \.element.id) { index, block in
                     BlockQueueRow(
                         block: block,
                         index: index,
-                        isActive: index == controller.runner.currentBlockIndex,
-                        isCompleted: index < controller.runner.currentBlockIndex,
-                        currentRep: index == controller.runner.currentBlockIndex ? controller.runner.currentRep : 0
+                        isActive: index == controller.runner.currentBlockIndex && controller.runner.phase != .complete,
+                        attempted: controller.repsAttempted[block.id] ?? 0,
+                        accent: PPColors.blockColor(at: index)
                     ) {
-                        controller.jumpToBlock(index: index)
+                        controller.selectBlock(at: index)
                     }
-                }
-            }
-            .background(RoundedRectangle(cornerRadius: 14).fill(PPColors.card))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-        }
-    }
-
-    // MARK: - Controls
-
-    private func controlsSection(block: PracticeBlock) -> some View {
-        VStack(spacing: 12) {
-            PPSectionHeader(title: "Controls")
-
-            VStack(spacing: 1) {
-                PPDiagnosticRow(icon: "play.fill", label: "Play section") {
-                    controller.playCurrentBlock()
-                }
-
-                Divider().background(PPColors.cardBorder)
-
-                PPDiagnosticRow(icon: "pause.fill", label: "Pause playback") {
-                    controller.pausePlayback()
-                }
-
-                Divider().background(PPColors.cardBorder)
-
-                PPDiagnosticRow(icon: "timer", label: "Start break", value: "\(block.restSeconds)s") {
-                    controller.beginBreak()
-                }
-
-                Divider().background(PPColors.cardBorder)
-
-                PPDiagnosticRow(icon: "metronome", label: "Start lead-in", value: "\(block.leadInSeconds)s") {
-                    controller.beginLeadIn()
-                }
-
-                Divider().background(PPColors.cardBorder)
-
-                PPDiagnosticRow(icon: "backward.fill", label: "Previous block") {
-                    controller.previousBlock()
-                }
-
-                Divider().background(PPColors.cardBorder)
-
-                PPDiagnosticRow(icon: "forward.fill", label: "Skip to next block") {
-                    controller.skipBlock()
                 }
             }
             .background(RoundedRectangle(cornerRadius: 14).fill(PPColors.card))
@@ -362,39 +227,56 @@ struct LiveRunView: View {
     // MARK: - Bottom Action Bar
 
     private var bottomActionBar: some View {
-        VStack(spacing: 0) {
-            LinearGradient(
-                colors: [PPColors.background.opacity(0), PPColors.background],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 30)
-
-            HStack(spacing: 12) {
-                // Main action button
-                Button {
-                    handleMainAction()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: mainActionIcon)
-                            .font(.system(size: 18, weight: .bold))
-                        Text(mainActionLabel.uppercased())
-                            .font(PPFonts.headline(15))
-                            .tracking(0.8)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(mainActionColor)
-                    .foregroundStyle(mainActionForeground)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-                .buttonStyle(.plain)
-                .sensoryFeedback(.impact(weight: .medium), trigger: controller.runner.phase)
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            .background(PPColors.background)
+        HStack {
+            Spacer()
+            speedPill
+            Spacer()
         }
+    }
+
+    private var speedPill: some View {
+        let isOffOne = abs(controller.playbackRate - 1.0) > 0.001
+        return Button {
+            controller.cyclePlaybackRate()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "gauge.with.dots.needle.50percent")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(isOffOne ? PPColors.accentYellow : PPColors.textTertiary)
+                Text(formattedRate(controller.playbackRate))
+                    .font(PPFonts.mono(15))
+                    .foregroundStyle(PPColors.textPrimary)
+                Text("SPEED")
+                    .font(PPFonts.caption(9))
+                    .tracking(1.4)
+                    .foregroundStyle(PPColors.textTertiary)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 18)
+            .background(
+                Capsule().fill(PPColors.card)
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(
+                        isOffOne ? PPColors.accentYellow.opacity(0.8) : PPColors.cardBorder,
+                        lineWidth: 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: controller.playbackRate)
+    }
+
+    private func formattedRate(_ rate: Float) -> String {
+        let rounded = (rate * 100).rounded() / 100
+        if abs(rounded - rounded.rounded()) < 0.001 {
+            return String(format: "%.0f×", rounded)
+        }
+        let trimmed = String(format: "%.2f", rounded)
+            .replacingOccurrences(of: #"0+$"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"\.$"#, with: "", options: .regularExpression)
+        return "\(trimmed)×"
     }
 
     // MARK: - Empty State
@@ -421,28 +303,8 @@ struct LiveRunView: View {
 
     private var isActivePhase: Bool {
         switch controller.runner.phase {
-        case .playing, .leadIn: return true
+        case .playing: return true
         default: return false
-        }
-    }
-
-    private var phaseHeroTitle: String {
-        switch controller.runner.phase {
-        case .idle: return "READY TO GO"
-        case .playing: return "NOW PLAYING"
-        case .breakCountdown: return "BREAK TIME"
-        case .leadIn: return "LEAD-IN"
-        case .complete: return "SESSION DONE"
-        }
-    }
-
-    private var phaseStatusLabel: String {
-        switch controller.runner.phase {
-        case .idle: return "Armed"
-        case .playing: return "Live"
-        case .breakCountdown: return "Rest"
-        case .leadIn: return "Counting"
-        case .complete: return "Done"
         }
     }
 
@@ -450,8 +312,8 @@ struct LiveRunView: View {
         switch controller.runner.phase {
         case .idle: return PPColors.accentYellow
         case .playing: return PPColors.success
-        case .breakCountdown: return PPColors.accentOrange
-        case .leadIn: return PPColors.accentYellow
+        case .breakCountdown(let s):
+            return s <= PracticeBlock.countdownTailSeconds ? PPColors.accentYellow : PPColors.accentOrange
         case .complete: return PPColors.success
         }
     }
@@ -463,9 +325,10 @@ struct LiveRunView: View {
         case .playing:
             return "Playing"
         case .breakCountdown(let secondsRemaining):
-            return "Break — \(secondsRemaining)s remaining"
-        case .leadIn(let secondsRemaining):
-            return "Lead-In — \(secondsRemaining)s"
+            if secondsRemaining <= PracticeBlock.countdownTailSeconds {
+                return "Get ready — \(secondsRemaining)"
+            }
+            return "Rest — \(secondsRemaining)s remaining"
         case .complete:
             return "Session Complete 🎉"
         }
@@ -475,43 +338,45 @@ struct LiveRunView: View {
         switch controller.runner.phase {
         case .idle: return "bolt.circle.fill"
         case .playing: return "play.circle.fill"
-        case .breakCountdown: return "timer"
-        case .leadIn: return "metronome.fill"
+        case .breakCountdown(let s):
+            return s <= PracticeBlock.countdownTailSeconds ? "metronome.fill" : "timer"
         case .complete: return "checkmark.circle.fill"
         }
     }
 
     private var mainActionLabel: String {
+        if controller.isPaused { return "Resume" }
         switch controller.runner.phase {
         case .idle: return "Start Playing"
         case .playing: return "Pause"
-        case .breakCountdown: return "Skip Break"
-        case .leadIn: return "Skip Lead-In"
+        case .breakCountdown: return "Skip Rest"
         case .complete: return "Restart Session"
         }
     }
 
     private var mainActionIcon: String {
+        if controller.isPaused { return "play.fill" }
         switch controller.runner.phase {
         case .idle: return "play.fill"
         case .playing: return "pause.fill"
         case .breakCountdown: return "forward.fill"
-        case .leadIn: return "forward.fill"
         case .complete: return "arrow.counterclockwise"
         }
     }
 
     private var mainActionColor: Color {
+        if controller.isPaused { return PPColors.accentYellow }
         switch controller.runner.phase {
         case .idle: return PPColors.accentYellow
         case .playing: return PPColors.card
-        case .breakCountdown: return PPColors.accentOrange
-        case .leadIn: return PPColors.accentYellow
+        case .breakCountdown(let s):
+            return s <= PracticeBlock.countdownTailSeconds ? PPColors.accentYellow : PPColors.accentOrange
         case .complete: return PPColors.success
         }
     }
 
     private var mainActionForeground: Color {
+        if controller.isPaused { return .black }
         switch controller.runner.phase {
         case .playing: return .white
         default: return .black
@@ -521,15 +386,17 @@ struct LiveRunView: View {
     // MARK: - Actions
 
     private func handleMainAction() {
+        if controller.isPaused {
+            controller.resumePlayback()
+            return
+        }
         switch controller.runner.phase {
         case .idle:
             controller.playCurrentBlock()
         case .playing:
             controller.pausePlayback()
         case .breakCountdown:
-            controller.playCurrentBlock()
-        case .leadIn:
-            controller.playCurrentBlock()
+            controller.skipBreak()
         case .complete:
             controller.resetSession()
         }
@@ -542,59 +409,52 @@ private struct BlockQueueRow: View {
     let block: PracticeBlock
     let index: Int
     let isActive: Bool
-    let isCompleted: Bool
-    let currentRep: Int
+    let attempted: Int
+    let accent: Color
     let onTap: () -> Void
+
+    private var isFullyAttempted: Bool { attempted >= block.reps && block.reps > 0 }
 
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Status indicator
                 ZStack {
                     Circle()
-                        .fill(statusColor.opacity(0.15))
+                        .fill(accent.opacity(0.18))
                         .frame(width: 32, height: 32)
 
-                    if isCompleted {
+                    if isFullyAttempted {
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(PPColors.success)
+                            .foregroundStyle(accent)
                     } else {
                         Text("\(index + 1)")
                             .font(PPFonts.mono(13))
-                            .foregroundStyle(statusColor)
+                            .foregroundStyle(accent)
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(block.title)
-                        .font(PPFonts.headline(14))
-                        .foregroundStyle(isActive ? PPColors.textPrimary : PPColors.textSecondary)
+                Text(block.title)
+                    .font(PPFonts.headline(14))
+                    .foregroundStyle(isActive ? PPColors.textPrimary : PPColors.textSecondary)
+                    .lineLimit(1)
 
-                    HStack(spacing: 8) {
-                        Text(block.section.name)
-                        Text("•")
-                        Text("\(block.reps) reps")
-                        if isActive && currentRep > 0 {
-                            Text("•")
-                            Text("Rep \(currentRep)")
-                                .foregroundStyle(PPColors.accentYellow)
+                Spacer(minLength: 8)
+
+                if block.reps > 0 {
+                    HStack(spacing: 4) {
+                        ForEach(1...block.reps, id: \.self) { rep in
+                            Circle()
+                                .fill(rep <= attempted ? accent : PPColors.cardBorder)
+                                .frame(width: 8, height: 8)
                         }
                     }
-                    .font(PPFonts.mono(11))
-                    .foregroundStyle(PPColors.textTertiary)
                 }
-
-                Spacer()
-
-                Text(Formatters.clock(block.estimatedDuration))
-                    .font(PPFonts.mono(12))
-                    .foregroundStyle(PPColors.textTertiary)
 
                 if isActive {
                     Image(systemName: "speaker.wave.2.fill")
                         .font(.system(size: 12))
-                        .foregroundStyle(PPColors.accentYellow)
+                        .foregroundStyle(accent)
                 }
             }
             .padding(.vertical, 12)
@@ -602,12 +462,6 @@ private struct BlockQueueRow: View {
             .background(isActive ? PPColors.cardHighlight : Color.clear)
         }
         .buttonStyle(.plain)
-    }
-
-    private var statusColor: Color {
-        if isCompleted { return PPColors.success }
-        if isActive { return PPColors.accentYellow }
-        return PPColors.textTertiary
     }
 }
 
@@ -669,9 +523,35 @@ private struct GlobalTimelineStripView: View {
     let samples: [Float]
     let mixDuration: TimeInterval
     let currentTime: TimeInterval
-    let sections: [PracticeSection]
-    let activeSection: PracticeSection?
-    let onSeek: (TimeInterval) -> Void
+    let blocks: [PracticeBlock]
+    let activeBlockIndex: Int
+    let onSelectBlock: (Int) -> Void
+
+    @State private var hoverBlockIndex: Int?
+
+    private var activeBlock: PracticeBlock? {
+        blocks.indices.contains(activeBlockIndex) ? blocks[activeBlockIndex] : nil
+    }
+
+    /// Resolve a tap/drag x-position to a block index — either the block whose section
+    /// contains that time, or the nearest block by section midpoint.
+    private func resolveBlock(at x: CGFloat, totalWidth: CGFloat) -> Int? {
+        guard !blocks.isEmpty, mixDuration > 0, totalWidth > 0 else { return nil }
+        let frac = max(0, min(Double(x / totalWidth), 1))
+        let t = frac * mixDuration
+        if let containing = blocks.firstIndex(where: { t >= $0.section.startTime && t < $0.section.endTime }) {
+            return containing
+        }
+        // Snap to nearest by section midpoint.
+        var bestIndex = 0
+        var bestDistance = Double.infinity
+        for (i, block) in blocks.enumerated() {
+            let mid = (block.section.startTime + block.section.endTime) / 2
+            let d = abs(mid - t)
+            if d < bestDistance { bestDistance = d; bestIndex = i }
+        }
+        return bestIndex
+    }
 
     var body: some View {
         VStack(spacing: 5) {
@@ -702,30 +582,49 @@ private struct GlobalTimelineStripView: View {
                         }
                     }
 
-                    // Section overlays
+                    // Block overlays — each section that's "throwing" gets its block-accent fill
+                    // and an Nx multiplier showing reps.
                     if mixDuration > 0 {
-                        ForEach(sections) { section in
-                            let startFrac = CGFloat(section.startTime / mixDuration)
-                            let endFrac = CGFloat(section.endTime / mixDuration)
+                        ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
+                            let startFrac = CGFloat(block.section.startTime / mixDuration)
+                            let endFrac = CGFloat(block.section.endTime / mixDuration)
                             let sectionW = max((endFrac - startFrac) * totalWidth, 2)
-                            let isActive = section.id == activeSection?.id
+                            let isActive = index == activeBlockIndex
+                            let accent = PPColors.blockColor(at: index)
 
                             Rectangle()
-                                .fill(section.type.accentColor.opacity(isActive ? 0.30 : 0.10))
+                                .fill(accent.opacity(isActive ? 0.35 : 0.18))
                                 .frame(width: sectionW, height: totalHeight)
                                 .offset(x: startFrac * totalWidth)
 
                             if isActive {
                                 Rectangle()
-                                    .fill(section.type.accentColor.opacity(0.85))
+                                    .fill(accent.opacity(0.95))
                                     .frame(width: sectionW, height: 2)
                                     .offset(x: startFrac * totalWidth)
                                     .frame(maxHeight: .infinity, alignment: .top)
                             }
+
+                            // Rep multiplier badge (e.g., "3×"). Only when there's room to read it.
+                            if block.reps > 1 && sectionW >= 24 {
+                                Text("\(block.reps)×")
+                                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(
+                                        Capsule().fill(accent.opacity(isActive ? 1.0 : 0.85))
+                                    )
+                                    .position(
+                                        x: startFrac * totalWidth + min(sectionW / 2, 20),
+                                        y: 9
+                                    )
+                                    .allowsHitTesting(false)
+                            }
                         }
                     }
 
-                    // Playhead
+                    // Playhead (always tracks audio time, not the user's finger)
                     if mixDuration > 0 {
                         let playFrac = CGFloat(max(0, min(currentTime / mixDuration, 1)))
                         ZStack(alignment: .top) {
@@ -741,14 +640,31 @@ private struct GlobalTimelineStripView: View {
                         .offset(x: playFrac * totalWidth - 1)
                         .allowsHitTesting(false)
                     }
+
+                    // Hover highlight while finger is down — shows which block will be selected.
+                    if let hover = hoverBlockIndex, blocks.indices.contains(hover) {
+                        let hoverBlock = blocks[hover]
+                        let startFrac = CGFloat(hoverBlock.section.startTime / mixDuration)
+                        let endFrac = CGFloat(hoverBlock.section.endTime / mixDuration)
+                        let w = max((endFrac - startFrac) * totalWidth, 2)
+                        Rectangle()
+                            .stroke(Color.white.opacity(0.85), lineWidth: 2)
+                            .frame(width: w, height: totalHeight - 2)
+                            .offset(x: startFrac * totalWidth, y: 1)
+                            .allowsHitTesting(false)
+                    }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            guard mixDuration > 0 else { return }
-                            let clamped = max(0, min(value.location.x, totalWidth))
-                            onSeek(Double(clamped / totalWidth) * mixDuration)
+                            hoverBlockIndex = resolveBlock(at: value.location.x, totalWidth: totalWidth)
+                        }
+                        .onEnded { value in
+                            if let index = resolveBlock(at: value.location.x, totalWidth: totalWidth) {
+                                onSelectBlock(index)
+                            }
+                            hoverBlockIndex = nil
                         }
                 )
             }
@@ -758,8 +674,8 @@ private struct GlobalTimelineStripView: View {
                 Text(Formatters.clock(currentTime))
                     .foregroundStyle(PPColors.accentYellow)
                 Spacer()
-                if let section = activeSection {
-                    Text(section.name)
+                if let block = activeBlock {
+                    Text(block.section.name)
                         .foregroundStyle(PPColors.textTertiary)
                     Spacer()
                 }

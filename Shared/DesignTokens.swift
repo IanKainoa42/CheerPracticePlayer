@@ -14,6 +14,30 @@ enum PPColors {
     static let destructive = Color(red: 1.0, green: 0.27, blue: 0.27)
     static let success = Color(red: 0.30, green: 0.85, blue: 0.40)
     static let cardHighlight = Color(white: 0.14)
+
+    /// Per-block accent palette in a red → orange → yellow gradient (12 stops).
+    /// Used to color-code rep pips, queue rows, and timeline overlays so coaches can
+    /// distinguish sections at a glance. Cycles by index — stable for a given session layout.
+    static let blockPalette: [Color] = [
+        Color(red: 0.90, green: 0.22, blue: 0.21),  // #E53935 red
+        Color(red: 0.96, green: 0.32, blue: 0.12),  // #F4511E deep orange
+        Color(red: 1.00, green: 0.42, blue: 0.21),  // #FF6B35 orange
+        Color(red: 0.98, green: 0.55, blue: 0.00),  // #FB8C00 dark orange
+        Color(red: 1.00, green: 0.60, blue: 0.00),  // #FF9800 orange
+        Color(red: 1.00, green: 0.65, blue: 0.15),  // #FFA726 light orange
+        Color(red: 1.00, green: 0.70, blue: 0.00),  // #FFB300 amber
+        Color(red: 1.00, green: 0.76, blue: 0.03),  // #FFC107 amber
+        Color(red: 1.00, green: 0.79, blue: 0.16),  // #FFCA28 light amber
+        Color(red: 1.00, green: 0.84, blue: 0.31),  // #FFD54F gold
+        Color(red: 1.00, green: 0.92, blue: 0.23),  // #FFEB3B yellow
+        Color(red: 1.00, green: 0.95, blue: 0.46),  // #FFF176 light yellow
+    ]
+
+    static func blockColor(at index: Int) -> Color {
+        let palette = blockPalette
+        guard !palette.isEmpty else { return accentYellow }
+        return palette[((index % palette.count) + palette.count) % palette.count]
+    }
 }
 
 // MARK: - Typography

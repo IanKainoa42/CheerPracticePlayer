@@ -4,8 +4,15 @@ enum LivePlaybackPhase: Equatable {
     case idle
     case playing
     case breakCountdown(secondsRemaining: Int)
-    case leadIn(secondsRemaining: Int)
     case complete
+
+    /// True when this break-countdown phase is in the final "get ready" tail.
+    var isCountdownTail: Bool {
+        if case .breakCountdown(let remaining) = self {
+            return remaining <= PracticeBlock.countdownTailSeconds
+        }
+        return false
+    }
 }
 
 struct SessionRunnerState {
@@ -108,11 +115,9 @@ struct SessionRunnerState {
         guard let block = currentBlock else { return }
 
         if currentRep < block.reps {
-            // More reps remaining — go to break
+            // More reps remaining — gap (rest) before next rep
             if block.restSeconds > 0 {
                 phase = .breakCountdown(secondsRemaining: block.restSeconds)
-            } else if block.leadInSeconds > 0 {
-                phase = .leadIn(secondsRemaining: block.leadInSeconds)
             } else {
                 currentRep += 1
                 phase = .playing
@@ -123,8 +128,9 @@ struct SessionRunnerState {
             if template.blocks.indices.contains(nextIndex) {
                 currentBlockIndex = nextIndex
                 currentRep = 1
-                if template.blocks[nextIndex].leadInSeconds > 0 {
-                    phase = .leadIn(secondsRemaining: template.blocks[nextIndex].leadInSeconds)
+                let nextRest = template.blocks[nextIndex].restSeconds
+                if nextRest > 0 {
+                    phase = .breakCountdown(secondsRemaining: nextRest)
                 } else {
                     phase = .playing
                 }
@@ -141,25 +147,15 @@ struct SessionRunnerState {
                 phase = .breakCountdown(secondsRemaining: remaining - 1)
                 return true
             } else {
-                // Break finished — lead-in or play
+                // Break finished — go play (currentRep increments only for intra-block gaps,
+                // since inter-block transitions already set currentRep = 1).
                 guard let block = currentBlock else {
                     phase = .complete
                     return false
                 }
-                currentRep += 1
-                if block.leadInSeconds > 0 {
-                    phase = .leadIn(secondsRemaining: block.leadInSeconds)
-                } else {
-                    phase = .playing
+                if currentRep < block.reps {
+                    currentRep += 1
                 }
-                return false
-            }
-
-        case .leadIn(let remaining):
-            if remaining > 1 {
-                phase = .leadIn(secondsRemaining: remaining - 1)
-                return true
-            } else {
                 phase = .playing
                 return false
             }
@@ -174,9 +170,14 @@ struct SessionRunnerState {
         phase = .breakCountdown(secondsRemaining: block.restSeconds)
     }
 
-    mutating func beginLeadIn() {
-        guard let block = currentBlock else { return }
-        phase = .leadIn(secondsRemaining: block.leadInSeconds)
+    /// Fast-forward through the current break: advance the rep counter (for intra-block breaks)
+    /// and transition to `.playing`. Inter-block breaks already set `currentRep = 1`.
+    mutating func completeBreak() {
+        guard case .breakCountdown = phase, let block = currentBlock else { return }
+        if currentRep < block.reps {
+            currentRep += 1
+        }
+        phase = .playing
     }
 
     mutating func restartBlock() {

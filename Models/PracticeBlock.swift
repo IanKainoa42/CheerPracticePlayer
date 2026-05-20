@@ -10,16 +10,19 @@ struct PracticeBlock: Identifiable, Hashable {
     var title: String
     var section: PracticeSection
     var reps: Int
+    /// Gap between reps (and before rep 1 of any block after the first).
+    /// The last `PracticeBlock.countdownTailSeconds` of this gap are an audible/visible countdown.
     var restSeconds: Int
-    var leadInSeconds: Int
     var restartMode: RestartMode
+
+    /// How many of the final seconds of `restSeconds` are surfaced as the "get ready" countdown.
+    static let countdownTailSeconds: Int = 5
 
     var estimatedDuration: TimeInterval {
         let repCount = max(reps, 0)
         let sectionDuration = section.duration * Double(repCount)
         let restWindows = max(repCount - 1, 0)
         let restDuration = Double(restWindows * restSeconds)
-        let leadIns = Double(repCount * leadInSeconds)
-        return sectionDuration + restDuration + leadIns
+        return sectionDuration + restDuration
     }
 }

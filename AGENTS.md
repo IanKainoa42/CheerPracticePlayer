@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working in this repository.
 
 ## Project Rules
 
@@ -66,14 +66,6 @@ Sections are time ranges within the mix. Blocks reference a section and add prac
 - `SessionRunnerState` is the pure value-type state machine for block index, rep count, and phase (`idle` -> `playing` -> `breakCountdown`/`leadIn` -> `complete`). Keep timers and side effects out of it.
 - `LiveSessionController` is an `@Observable @MainActor` controller that owns runner state and an `AudioPlaybackControlling` implementation. UI actions should pass through here instead of talking directly to audio playback.
 - `AudioPlaybackEngine` wraps `AVAudioPlayer`, seeks to bounded segment starts, and schedules auto-stop with a `DispatchWorkItem`.
-
-### Intended UX Workflow (three sheets, in order)
-
-1. **Import & Split** — import a mix, save it to the device via `MixLibraryStore`, split into named sections (time ranges in the mix).
-2. **Program blocks** — pick which sections to throw, set reps, set rest/break length between them.
-3. **Live Run** — execute the programmed session: countdown, playback, skip, restart.
-
-The current `PracticeBuilderView` combines (1) and (2) on one tab; the target is to split them into sequential sheets. Don't collapse this flow further — keep Import/Split, Program, and Live Run conceptually distinct when adding UI.
 
 ### Tab Structure
 

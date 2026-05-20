@@ -363,6 +363,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_TEAM = WC46K49VFA;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -376,7 +377,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayer;
 				PRODUCT_NAME = CheerPracticePlayer;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -525,6 +528,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DERIVE_MACCATALYST_PRODUCT_BUNDLE_IDENTIFIER = NO;
 				DEVELOPMENT_TEAM = WC46K49VFA;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -538,7 +542,9 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.ianrichardson.CheerPracticePlayer;
 				PRODUCT_NAME = CheerPracticePlayer;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				SUPPORTS_MACCATALYST = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
