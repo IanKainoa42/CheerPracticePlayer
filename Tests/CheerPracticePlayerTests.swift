@@ -361,6 +361,27 @@ final class CheerPracticePlayerTests: XCTestCase {
                       "A valid file must NOT be backed up")
     }
 
+    func testSoundEffectsPlayer_PreparesAndSynthesizesWavData() {
+        let wavData = SoundEffectsPlayer.generateBeepWav(frequency: 880.0, duration: 0.15, attack: 0.01, decay: 0.12)
+        XCTAssertNotNil(wavData, "Synthesized WAV data should not be nil")
+        guard let data = wavData else { return }
+        
+        // Basic check for WAV header structure
+        XCTAssertGreaterThanOrEqual(data.count, 44, "WAV data must contain at least the 44-byte header")
+        
+        let riffHeader = String(data: data.subdata(in: 0..<4), encoding: .ascii)
+        XCTAssertEqual(riffHeader, "RIFF", "Header must start with RIFF")
+        
+        let waveHeader = String(data: data.subdata(in: 8..<12), encoding: .ascii)
+        XCTAssertEqual(waveHeader, "WAVE", "Header must contain WAVE signature")
+        
+        let fmtHeader = String(data: data.subdata(in: 12..<16), encoding: .ascii)
+        XCTAssertEqual(fmtHeader, "fmt ", "Header must contain fmt subchunk ID")
+        
+        let dataHeader = String(data: data.subdata(in: 36..<40), encoding: .ascii)
+        XCTAssertEqual(dataHeader, "data", "Header must contain data subchunk ID")
+    }
+
     private func cleanupTestArtifacts(near url: URL) {
         let dir = url.deletingLastPathComponent()
         let basename = url.lastPathComponent

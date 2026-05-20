@@ -187,6 +187,16 @@ final class LiveSessionController {
         audioPlayer.pause()
         runner.beginBreak()
         audioStatus = phaseDescription
+        
+        // Handle immediate countdown/warning trigger when rest starts
+        if case .breakCountdown(let remaining) = runner.phase {
+            if remaining == 10 {
+                SoundEffectsPlayer.shared.playDoubleBeep()
+            } else if remaining <= PracticeBlock.countdownTailSeconds {
+                SoundEffectsPlayer.shared.playBeep()
+            }
+        }
+        
         startCountdown()
     }
 
@@ -241,6 +251,14 @@ final class LiveSessionController {
         switch runner.phase {
         case .breakCountdown:
             audioStatus = phaseDescription
+            // Handle immediate countdown/warning trigger when rest starts
+            if case .breakCountdown(let remaining) = runner.phase {
+                if remaining == 10 {
+                    SoundEffectsPlayer.shared.playDoubleBeep()
+                } else if remaining <= PracticeBlock.countdownTailSeconds {
+                    SoundEffectsPlayer.shared.playBeep()
+                }
+            }
             startCountdown()
 
         case .playing:
@@ -284,6 +302,17 @@ final class LiveSessionController {
     private func tickCountdown() {
         let shouldContinue = runner.tickCountdown()
         audioStatus = phaseDescription
+
+        if shouldContinue {
+            // Play beeps on countdown ticks
+            if case .breakCountdown(let remaining) = runner.phase {
+                if remaining == 10 {
+                    SoundEffectsPlayer.shared.playDoubleBeep()
+                } else if remaining <= PracticeBlock.countdownTailSeconds {
+                    SoundEffectsPlayer.shared.playBeep()
+                }
+            }
+        }
 
         if !shouldContinue {
             stopCountdown()

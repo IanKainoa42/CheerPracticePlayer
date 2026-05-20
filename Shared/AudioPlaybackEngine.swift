@@ -16,6 +16,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
     private var player: AVAudioPlayer?
     private var loadedURL: URL?
     private var stopTask: DispatchWorkItem?
+    private var fadeTimer: Timer?
     private var sessionConfigured = false
     private var _rate: Float = 1.0
     private var segmentEndTime: TimeInterval = 0
@@ -40,6 +41,8 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         guard loadedURL != url else { return }
 
         stopTask?.cancel()
+        fadeTimer?.invalidate()
+        fadeTimer = nil
         player?.stop()
 
         let player = try AVAudioPlayer(contentsOf: url)
@@ -54,6 +57,8 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         guard let player else { return }
 
         stopTask?.cancel()
+        fadeTimer?.invalidate()
+        fadeTimer = nil
         activateSession()
 
         let safeStart = max(startTime, 0)
@@ -63,38 +68,71 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
 
         guard duration > 0.01 else {
             player.pause()
+            player.volume = 1.0
             return
         }
 
-        player.currentTime = safeStart
+        // Fade in pre-roll: start 0.5s early and fade to full volume at startTime
+        let fadeDuration: TimeInterval = 0.5
+        let playStartTime = max(safeStart - fadeDuration, 0)
+        let actualPreRoll = safeStart - playStartTime
+
+        player.currentTime = playStartTime
         player.enableRate = true
         player.rate = _rate
-        player.play()
 
-        scheduleAutoStop(after: duration)
+        if actualPreRoll > 0.05 {
+            player.volume = 0.0
+            player.play()
+            let realFadeDuration = actualPreRoll / Double(max(_rate, 0.01))
+            performVolumeFade(from: 0.0, to: 1.0, duration: realFadeDuration)
+        } else {
+            player.volume = 1.0
+            player.play()
+        }
+
+        // Total audio distance from playStartTime to safeEnd (endTime)
+        let totalAudioDistance = safeEnd - playStartTime
+        let realDelayToStop = totalAudioDistance / Double(max(_rate, 0.01))
+        scheduleAutoStop(after: realDelayToStop)
     }
 
     func resumeUntil(remainingDuration: TimeInterval) {
         guard let player else { return }
 
         stopTask?.cancel()
+        fadeTimer?.invalidate()
+        fadeTimer = nil
         activateSession()
         
         segmentEndTime = player.currentTime + remainingDuration
 
         guard remainingDuration > 0.01 else {
             player.pause()
+            player.volume = 1.0
             return
         }
 
         player.enableRate = true
         player.rate = _rate
+
+        // Fade in quickly on manual resume to avoid abrupt volume hits
+        let resumeFadeDuration: TimeInterval = 0.2
+        player.volume = 0.0
         player.play()
-        scheduleAutoStop(after: max(remainingDuration, 0))
+
+        let realFadeDuration = min(resumeFadeDuration, remainingDuration / Double(max(_rate, 0.01)))
+        performVolumeFade(from: 0.0, to: 1.0, duration: realFadeDuration)
+
+        let realDelay = remainingDuration / Double(max(_rate, 0.01))
+        scheduleAutoStop(after: realDelay)
     }
 
     func pause() {
         stopTask?.cancel()
+        fadeTimer?.invalidate()
+        fadeTimer = nil
+        player?.volume = 1.0
         player?.pause()
     }
 
@@ -107,14 +145,60 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         player?.currentTime = time
     }
 
-    private func scheduleAutoStop(after audioDuration: TimeInterval) {
-        guard audioDuration > 0 else { return }
-        let realDelay = audioDuration / Double(max(_rate, 0.01))
-        // Capture `self` weakly so the work item always pauses the current player —
-        // not a stale player snapshotted at schedule time (which would be released
-        // and turn pause() into a no-op, letting audio run past the section end).
+    private func performVolumeFade(
+        from startVol: Float,
+        to endVol: Float,
+        duration: TimeInterval,
+        completion: (() -> Void)? = nil
+    ) {
+        fadeTimer?.invalidate()
+
+        guard let player = player, duration > 0.01 else {
+            player?.volume = endVol
+            completion?()
+            return
+        }
+
+        let steps = 20
+        let stepInterval = duration / Double(steps)
+        let volStep = (endVol - startVol) / Float(steps)
+
+        var currentStep = 0
+        player.volume = startVol
+
+        // Register the timer in the .common run loop mode so scrolling/animations do not starve it
+        let timer = Timer(timeInterval: stepInterval, repeats: true) { [weak self] t in
+            guard let self = self, let player = self.player else {
+                t.invalidate()
+                return
+            }
+
+            currentStep += 1
+            let newVol = startVol + volStep * Float(currentStep)
+            player.volume = max(0.0, min(newVol, 1.0))
+
+            if currentStep >= steps {
+                t.invalidate()
+                self.fadeTimer = nil
+                player.volume = endVol
+                completion?()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.fadeTimer = timer
+    }
+
+    private func scheduleAutoStop(after realDelay: TimeInterval) {
+        guard realDelay > 0 else { return }
+        
         let task = DispatchWorkItem { [weak self] in
-            self?.player?.pause()
+            guard let self = self, let player = self.player else { return }
+            // Smoothly fade out over 0.5 seconds past the endTime
+            let fadeOutDuration: TimeInterval = 0.5
+            self.performVolumeFade(from: 1.0, to: 0.0, duration: fadeOutDuration) { [weak self] in
+                self?.player?.pause()
+                self?.player?.volume = 1.0
+            }
         }
         stopTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + realDelay, execute: task)
