@@ -247,17 +247,127 @@ final class CheerPracticePlayerTests: XCTestCase {
             session: PrototypeSession.sample,
             audioPlayer: audioPlayer
         )
-        
+
         controller.playCurrentBlock()
-        
+
         XCTAssertFalse(controller.isPaused)
         XCTAssertNotNil(controller.playbackEndTimer)
-        
+
         controller.pausePlayback()
-        
+
         XCTAssertTrue(controller.isPaused)
         XCTAssertNil(controller.playbackEndTimer)
         XCTAssertEqual(audioPlayer.pauseCallCount, 1)
+    }
+
+    func testLiveSessionController_ResumeAfterPauseDuringBreak_RestartsCountdownAndDoesNotReplayAudio() {
+        // Regression: tab-switch (or any pause) during a rest interval used to
+        // dead-end the session. resumePlayback computed remainingAudio ≈ 0 from
+        // the just-ended segment and called onSectionPlaybackFinished, which
+        // returned early because phase != .playing. Play button became inert.
+        let audioPlayer = FakeAudioPlayer()
+        let controller = LiveSessionController(
+            session: PrototypeSession.sample,
+            audioPlayer: audioPlayer
+        )
+
+        controller.playCurrentBlock()
+        controller.beginBreak()
+        // Sanity: we are in the break countdown now.
+        guard case .breakCountdown = controller.runner.phase else {
+            return XCTFail("Expected phase .breakCountdown after beginBreak")
+        }
+
+        controller.pausePlayback()
+        XCTAssertTrue(controller.isPaused)
+
+        let playCallsBeforeResume = audioPlayer.playCallCount
+        controller.resumePlayback()
+
+        XCTAssertFalse(controller.isPaused, "Paused flag must clear on resume")
+        XCTAssertEqual(audioPlayer.playCallCount, playCallsBeforeResume,
+                       "Resuming during a rest interval must not replay audio")
+        if case .breakCountdown = controller.runner.phase {
+            // pass — runner still in the rest, countdown timer is restarted
+        } else {
+            XCTFail("Phase should remain .breakCountdown after resume during rest")
+        }
+    }
+
+    func testLiveSessionController_ResumeFromIdleWhilePaused_ClearsPausedFlagAndIsNoOp() {
+        // Defensive: pausing from idle (no active section loaded) and then tapping
+        // play must not crash or leave isPaused stuck. The next play tap should
+        // start a fresh block.
+        let audioPlayer = FakeAudioPlayer()
+        let controller = LiveSessionController(
+            session: PrototypeSession.sample,
+            audioPlayer: audioPlayer
+        )
+
+        controller.pausePlayback()
+        XCTAssertTrue(controller.isPaused)
+
+        controller.resumePlayback()
+
+        XCTAssertFalse(controller.isPaused)
+        XCTAssertEqual(audioPlayer.playCallCount, 0,
+                       "Resume from idle must not start audio on its own")
+    }
+
+    // MARK: - MixLibraryStore
+
+    func testMixLibraryStore_CorruptFile_IsBackedUpAndStoreStartsEmpty() {
+        // Regression: load() used `try? ... ?? []` which would silently nuke a
+        // user's saved library on first persist after any decode failure. Now
+        // we rename the corrupt file aside and start fresh.
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cpp-mix-store-test-\(UUID().uuidString).json")
+        defer { cleanupTestArtifacts(near: temp) }
+
+        try? "this is not valid json {".write(to: temp, atomically: true, encoding: .utf8)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: temp.path))
+
+        let store = MixLibraryStore(fileURL: temp)
+
+        XCTAssertEqual(store.mixes.count, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temp.path),
+                       "Corrupt file should have been moved aside")
+        let dir = temp.deletingLastPathComponent()
+        let backupExists = (try? FileManager.default.contentsOfDirectory(atPath: dir.path))?
+            .contains { $0.hasPrefix(temp.lastPathComponent) && $0.contains(".bak-") } ?? false
+        XCTAssertTrue(backupExists, "A .bak-<timestamp> backup file should exist next to the original path")
+    }
+
+    func testMixLibraryStore_ValidFile_LoadsMixesIntact() {
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cpp-mix-store-test-\(UUID().uuidString).json")
+        defer { cleanupTestArtifacts(near: temp) }
+
+        let mix = ImportedMix(
+            id: UUID(),
+            originalFileName: "test.m4a",
+            localPath: "/tmp/test.m4a",
+            duration: 120
+        )
+        let saved = [SavedMix(id: UUID(), mix: mix, sections: [], dateAdded: Date())]
+        let data = try! JSONEncoder().encode(saved)
+        try! data.write(to: temp)
+
+        let store = MixLibraryStore(fileURL: temp)
+
+        XCTAssertEqual(store.mixes.count, 1)
+        XCTAssertEqual(store.mixes.first?.mix.originalFileName, "test.m4a")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: temp.path),
+                      "A valid file must NOT be backed up")
+    }
+
+    private func cleanupTestArtifacts(near url: URL) {
+        let dir = url.deletingLastPathComponent()
+        let basename = url.lastPathComponent
+        let entries = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        for entry in entries where entry.hasPrefix(basename) {
+            try? FileManager.default.removeItem(at: dir.appendingPathComponent(entry))
+        }
     }
 }
 

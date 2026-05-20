@@ -110,8 +110,11 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
     private func scheduleAutoStop(after audioDuration: TimeInterval) {
         guard audioDuration > 0 else { return }
         let realDelay = audioDuration / Double(max(_rate, 0.01))
-        let task = DispatchWorkItem { [weak player] in
-            player?.pause()
+        // Capture `self` weakly so the work item always pauses the current player —
+        // not a stale player snapshotted at schedule time (which would be released
+        // and turn pause() into a no-op, letting audio run past the section end).
+        let task = DispatchWorkItem { [weak self] in
+            self?.player?.pause()
         }
         stopTask = task
         DispatchQueue.main.asyncAfter(deadline: .now() + realDelay, execute: task)

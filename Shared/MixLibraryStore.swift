@@ -6,11 +6,15 @@ final class MixLibraryStore {
 
     private let fileURL: URL
 
-    init() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("CheerPracticePlayer", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        self.fileURL = dir.appendingPathComponent("mix-library.json")
+    init(fileURL: URL? = nil) {
+        if let fileURL {
+            self.fileURL = fileURL
+        } else {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            let dir = appSupport.appendingPathComponent("CheerPracticePlayer", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            self.fileURL = dir.appendingPathComponent("mix-library.json")
+        }
         load()
     }
 
@@ -50,7 +54,22 @@ final class MixLibraryStore {
 
     private func load() {
         guard let data = try? Data(contentsOf: fileURL) else { return }
-        mixes = (try? JSONDecoder().decode([SavedMix].self, from: data)) ?? []
+        do {
+            mixes = try JSONDecoder().decode([SavedMix].self, from: data)
+        } catch {
+            // Don't silently overwrite a corrupt-but-present library on the next
+            // persist(); rename it aside so the user (or a future migration) can
+            // recover it. Then start clean.
+            backupCorruptFile()
+            mixes = []
+        }
+    }
+
+    private func backupCorruptFile() {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+            .replacingOccurrences(of: ":", with: "-")
+        let backupURL = fileURL.appendingPathExtension("bak-\(stamp)")
+        try? FileManager.default.moveItem(at: fileURL, to: backupURL)
     }
 
     private func persist() {

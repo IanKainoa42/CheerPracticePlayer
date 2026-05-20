@@ -67,8 +67,8 @@ final class LiveSessionController {
             let realDelay = remainingAudio / Double(max(rate, 0.01))
             cancelPlaybackEnd()
             if realDelay > 0 {
-                playbackEndTimer = Timer.scheduledTimer(withTimeInterval: realDelay, repeats: false) { [weak self] _ in
-                    Task { @MainActor in self?.onSectionPlaybackFinished() }
+                playbackEndTimer = makeCommonModeTimer(after: realDelay) { [weak self] in
+                    self?.onSectionPlaybackFinished()
                 }
             }
         }
@@ -90,8 +90,29 @@ final class LiveSessionController {
 
     func resumePlayback() {
         guard isPaused else { return }
+
+        switch runner.phase {
+        case .breakCountdown:
+            // Tab-switch (or any pause) during a rest interval stopped the countdown
+            // timer but preserved the seconds-remaining on the runner. Restart the
+            // timer from the preserved value; do NOT touch audio.
+            isPaused = false
+            audioStatus = phaseDescription
+            startCountdown()
+            startSessionTimer()
+            keepScreenAwake(true)
+            return
+        case .idle, .complete:
+            // Nothing meaningful to resume — clear the flag so the next tap drives
+            // a fresh play/restart from the card.
+            isPaused = false
+            return
+        case .playing:
+            break
+        }
+
         let remainingAudio = max(currentSegmentEndTime - audioPlayer.currentTime, 0)
-        
+
         guard remainingAudio > 0.01 else {
             isPaused = false
             onSectionPlaybackFinished()
@@ -104,8 +125,8 @@ final class LiveSessionController {
         cancelPlaybackEnd()
         let realDelay = remainingAudio / Double(max(playbackRate, 0.01))
         if realDelay > 0 {
-            playbackEndTimer = Timer.scheduledTimer(withTimeInterval: realDelay, repeats: false) { [weak self] _ in
-                Task { @MainActor in self?.onSectionPlaybackFinished() }
+            playbackEndTimer = makeCommonModeTimer(after: realDelay) { [weak self] in
+                self?.onSectionPlaybackFinished()
             }
         }
         startPlayheadTimer()
@@ -255,10 +276,8 @@ final class LiveSessionController {
 
     private func startCountdown() {
         stopCountdown()
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.tickCountdown()
-            }
+        countdownTimer = makeCommonModeTimer(after: 1.0, repeats: true) { [weak self] in
+            self?.tickCountdown()
         }
     }
 
@@ -285,10 +304,8 @@ final class LiveSessionController {
 
     private func startSessionTimer() {
         guard sessionTimer == nil else { return }
-        sessionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.elapsedSessionTime += 1
-            }
+        sessionTimer = makeCommonModeTimer(after: 1.0, repeats: true) { [weak self] in
+            self?.elapsedSessionTime += 1
         }
     }
 
@@ -344,10 +361,8 @@ final class LiveSessionController {
         // Schedule auto-advance when the section finishes playing
         let realDelay = sectionDuration / Double(max(playbackRate, 0.01))
         if realDelay > 0 {
-            playbackEndTimer = Timer.scheduledTimer(withTimeInterval: realDelay, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    self?.onSectionPlaybackFinished()
-                }
+            playbackEndTimer = makeCommonModeTimer(after: realDelay) { [weak self] in
+                self?.onSectionPlaybackFinished()
             }
         }
     }
@@ -361,12 +376,27 @@ final class LiveSessionController {
 
     private func startPlayheadTimer() {
         stopPlayheadTimer()
-        playheadTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                self.currentPlaybackTime = self.audioPlayer.currentTime
-            }
+        playheadTimer = makeCommonModeTimer(after: 0.1, repeats: true) { [weak self] in
+            guard let self else { return }
+            self.currentPlaybackTime = self.audioPlayer.currentTime
         }
+    }
+
+    /// Build a `Timer` and register it with the main RunLoop in `.common` mode so
+    /// SwiftUI animations (which keep the run loop in tracking mode) cannot starve
+    /// our timers. `Timer.scheduledTimer` registers in `.default` mode, which is
+    /// preempted by ongoing UIKit/SwiftUI tracking — losing us the section-end
+    /// callback during the pulse-ring animation on the cue card.
+    private nonisolated func makeCommonModeTimer(
+        after interval: TimeInterval,
+        repeats: Bool = false,
+        action: @escaping @MainActor @Sendable () -> Void
+    ) -> Timer {
+        let timer = Timer(timeInterval: interval, repeats: repeats) { _ in
+            Task { @MainActor in action() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        return timer
     }
 
     private func stopPlayheadTimer() {

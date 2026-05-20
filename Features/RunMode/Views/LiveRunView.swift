@@ -106,13 +106,16 @@ struct LiveRunView: View {
         return Button(action: handleMainAction) {
             HStack(spacing: 16) {
                 // Visual play indicator — the WHOLE card is the button; this is just the icon.
+                // Frame is locked so the pulse animation cannot reflow the HStack.
                 ZStack {
                     if isActivePhase {
                         Circle()
-                            .stroke(phaseStatusColor.opacity(0.45), lineWidth: 4)
-                            .frame(width: 72, height: 72)
+                            .stroke(Color.white.opacity(0.55), lineWidth: 3)
+                            .frame(width: 70, height: 70)
                             .scaleEffect(pulseScale)
+                            .opacity(2.0 - Double(pulseScale))
                             .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulseScale)
+                            .allowsHitTesting(false)
                     }
                     Circle()
                         .fill(phaseStatusColor)
@@ -123,6 +126,7 @@ struct LiveRunView: View {
                         .foregroundStyle(mainActionForeground)
                         .offset(x: mainActionIcon == "play.fill" ? 2 : 0)
                 }
+                .frame(width: 84, height: 84)
 
                 // Center column: title + phase label + pips
                 VStack(alignment: .leading, spacing: 4) {
@@ -290,6 +294,7 @@ struct LiveRunView: View {
     // MARK: - Computed Properties
 
     private var isActivePhase: Bool {
+        if controller.isPaused { return false }
         switch controller.runner.phase {
         case .playing: return true
         default: return false
@@ -297,6 +302,7 @@ struct LiveRunView: View {
     }
 
     private var phaseStatusColor: Color {
+        if controller.isPaused { return PPColors.accentYellow }
         switch controller.runner.phase {
         case .idle: return PPColors.accentYellow
         case .playing: return PPColors.success
@@ -307,6 +313,7 @@ struct LiveRunView: View {
     }
 
     private var phaseLabel: String {
+        if controller.isPaused { return "Paused" }
         switch controller.runner.phase {
         case .idle:
             return "Tap Play to Begin"

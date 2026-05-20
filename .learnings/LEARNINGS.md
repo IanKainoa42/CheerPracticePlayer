@@ -27,3 +27,28 @@
 - **Category:** correction
 - **What happened:** Renaming a section in Builder Step 3 did not update the block title shown in Live (hero, cue card, queue row). `PrototypeSession.upsertSection` had `if updated.title.isEmpty { updated.title = normalized.name }`, but blocks are seeded with a non-empty title at creation, so the guard never fired.
 - **Rule:** Block title is a derived mirror of section name (no UI edits it independently). On `upsertSection`, set `block.title = normalized.name` unconditionally. If a future feature adds an independent block-title editor, revisit this and gate the propagation on "title currently matches the old section name."
+
+## 2026-05-20 — Unified play/pause CTA dead-ended the session on pause-during-break
+
+- **Category:** correction
+- **What happened:** After the unified-status-card refactor (c5df974), pausing during a `.breakCountdown` phase (only reachable via tab-switch auto-pause from RootTabView) left the runner phase as `.breakCountdown(N)` and the countdown timer cancelled. On resume, `LiveSessionController.resumePlayback` computed `remainingAudio ≈ 0` from the just-ended segment and called `onSectionPlaybackFinished`, which guards on `phase == .playing` and silently returned. Net: play button became inert; the rest never resumed.
+- **Rule:** `resumePlayback` must branch on `runner.phase`: `.breakCountdown` → restart the countdown timer with the preserved seconds-remaining (do not touch audio); `.idle`/`.complete` → clear `isPaused` and no-op; only `.playing` falls through to `audioPlayer.resumeUntil`. Regression test: `testLiveSessionController_ResumeAfterPauseDuringBreak_RestartsCountdownAndDoesNotReplayAudio` in Tests/CheerPracticePlayerTests.swift.
+
+## 2026-05-20 — Status card lied "Playing" while paused
+
+- **Category:** correction
+- **What happened:** `LiveRunView.phaseLabel`, `isActivePhase`, and `phaseStatusColor` switched on `controller.runner.phase` alone, ignoring `controller.isPaused`. Result: while paused, the card label read "Playing", the green pulse ring kept animating, and the inner circle stayed green — even though the icon (gated correctly via `mainActionIcon`) had switched to `play.fill`. Three signals contradicted each other.
+- **Rule:** Every view-level computed property that reads `runner.phase` must short-circuit on `controller.isPaused` first, matching the existing pattern in `mainActionIcon`/`mainActionColor`/`mainActionForeground`. When adding new phase-derived view properties, copy that gate.
+
+## 2026-05-20 — MixLibraryStore silently nuked the library on any decode failure
+
+- **Category:** correction
+- **What happened:** `load()` was `mixes = (try? JSONDecoder().decode(...)) ?? []`. Any decode failure (future schema change, partial corruption, etc.) would silently start the store empty; the next `persist()` would atomically overwrite the only good copy with `[]`. v1.0 build 2 ships to App Store soon — this was a one-bad-byte-loses-all-saved-mixes risk.
+- **Rule:** On decode failure, rename the file to `<name>.bak-<ISO8601 timestamp>` via `FileManager.moveItem` BEFORE starting empty. Persist then writes a new file; the bak preserves the original for forensics or future migration. Tests `testMixLibraryStore_CorruptFile_IsBackedUpAndStoreStartsEmpty` and `testMixLibraryStore_ValidFile_LoadsMixesIntact` pin this. To make the test possible, `MixLibraryStore.init` now accepts an optional `fileURL` override.
+
+## 2026-05-20 — Pulse-ring repeatForever animation starved the section-end Timer
+
+- **Category:** correction
+- **What happened:** After the unified-status-card refactor (c5df974), the cue card's pulse ring uses `.animation(.easeInOut(...).repeatForever(autoreverses: true), value: pulseScale)`. On iPadOS 18, a SwiftUI `repeatForever` animation pins the main RunLoop into tracking mode for the duration of the animation. `Timer.scheduledTimer(withTimeInterval:repeats:block:)` registers in `.default` RunLoop mode, which is preempted while the loop is in tracking mode — so `playbackEndTimer` (and the countdown / playhead / session timers) silently never fired. Net symptom on iPad: tapping Play started the section but audio rolled past the section endTime and kept playing into the rest of the track. The `DispatchWorkItem` auto-stop in `AudioPlaybackEngine` also missed the pause because it captured `[weak player]` — a stale reference if anything between schedule and fire replaced the AVAudioPlayer.
+- **Rule:** Any `Timer` whose firing is load-bearing for app correctness MUST be registered with `RunLoop.main.add(_, forMode: .common)` — not `Timer.scheduledTimer`. `LiveSessionController.makeCommonModeTimer(...)` centralizes this. Also: capture `[weak self]` (the engine) in `AudioPlaybackEngine.scheduleAutoStop` so `self?.player?.pause()` always targets the current player.
+- **Detection:** If you ever see "audio plays past section end" or "countdown doesn't tick on Live tab" — first check whether the affected RunLoop-driven Timer is in `.common` mode. Pulse/breathing/ring animations elsewhere in the same view can starve `.default` timers.
