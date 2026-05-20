@@ -193,8 +193,8 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         
         let task = DispatchWorkItem { [weak self] in
             guard let self = self, let player = self.player else { return }
-            // Smoothly fade out over 0.5 seconds past the endTime
-            let fadeOutDuration: TimeInterval = 0.5
+            // Smoothly fade out over 1.0 seconds past the endTime
+            let fadeOutDuration: TimeInterval = 1.0
             self.performVolumeFade(from: 1.0, to: 0.0, duration: fadeOutDuration) { [weak self] in
                 self?.player?.pause()
                 self?.player?.volume = 1.0
