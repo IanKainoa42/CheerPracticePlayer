@@ -115,11 +115,11 @@ struct SessionRunnerState {
         guard let block = currentBlock else { return }
 
         if currentRep < block.reps {
-            // More reps remaining — gap (rest) before next rep
+            // More reps remaining — increment immediately
+            currentRep += 1
             if block.restSeconds > 0 {
                 phase = .breakCountdown(secondsRemaining: block.restSeconds)
             } else {
-                currentRep += 1
                 phase = .playing
             }
         } else {
@@ -147,15 +147,7 @@ struct SessionRunnerState {
                 phase = .breakCountdown(secondsRemaining: remaining - 1)
                 return true
             } else {
-                // Break finished — go play (currentRep increments only for intra-block gaps,
-                // since inter-block transitions already set currentRep = 1).
-                guard let block = currentBlock else {
-                    phase = .complete
-                    return false
-                }
-                if currentRep < block.reps {
-                    currentRep += 1
-                }
+                // Break finished — go play (currentRep is already incremented in finishRep)
                 phase = .playing
                 return false
             }
@@ -167,16 +159,16 @@ struct SessionRunnerState {
 
     mutating func beginBreak() {
         guard let block = currentBlock else { return }
-        phase = .breakCountdown(secondsRemaining: block.restSeconds)
-    }
-
-    /// Fast-forward through the current break: advance the rep counter (for intra-block breaks)
-    /// and transition to `.playing`. Inter-block breaks already set `currentRep = 1`.
-    mutating func completeBreak() {
-        guard case .breakCountdown = phase, let block = currentBlock else { return }
         if currentRep < block.reps {
             currentRep += 1
         }
+        phase = .breakCountdown(secondsRemaining: block.restSeconds)
+    }
+
+    /// Fast-forward through the current break: transition to `.playing`.
+    /// currentRep is already advanced when the break began.
+    mutating func completeBreak() {
+        guard case .breakCountdown = phase else { return }
         phase = .playing
     }
 

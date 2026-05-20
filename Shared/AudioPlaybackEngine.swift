@@ -18,6 +18,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
     private var stopTask: DispatchWorkItem?
     private var sessionConfigured = false
     private var _rate: Float = 1.0
+    private var segmentEndTime: TimeInterval = 0
 
     var currentTime: TimeInterval { player?.currentTime ?? 0 }
 
@@ -27,6 +28,11 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
             let clamped = max(0.25, min(newValue, 3.0))
             _rate = clamped
             player?.rate = clamped
+
+            if let player = player, player.isPlaying {
+                let remainingAudio = max(segmentEndTime - player.currentTime, 0)
+                rescheduleStop(remainingDuration: remainingAudio)
+            }
         }
     }
 
@@ -53,6 +59,12 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         let safeStart = max(startTime, 0)
         let safeEnd = max(endTime, safeStart)
         let duration = max(safeEnd - safeStart, 0)
+        segmentEndTime = safeEnd
+
+        guard duration > 0.01 else {
+            player.pause()
+            return
+        }
 
         player.currentTime = safeStart
         player.enableRate = true
@@ -67,6 +79,14 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
 
         stopTask?.cancel()
         activateSession()
+        
+        segmentEndTime = player.currentTime + remainingDuration
+
+        guard remainingDuration > 0.01 else {
+            player.pause()
+            return
+        }
+
         player.enableRate = true
         player.rate = _rate
         player.play()

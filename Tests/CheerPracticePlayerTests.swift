@@ -136,6 +136,129 @@ final class CheerPracticePlayerTests: XCTestCase {
 
         XCTAssertEqual(runner.phase, .complete)
     }
+
+    func testRunner_IntraBlockBreak_IncrementsRepCorrectly() {
+        var runner = SessionRunnerState(template: PrototypeSession.sample)
+        runner.start()
+        
+        XCTAssertEqual(runner.currentBlockIndex, 0)
+        XCTAssertEqual(runner.currentRep, 1)
+        XCTAssertEqual(runner.phase, .playing)
+        
+        // Finish Rep 1. Should immediately increment currentRep to 2 and transition to .breakCountdown
+        runner.finishRep()
+        XCTAssertEqual(runner.currentBlockIndex, 0)
+        XCTAssertEqual(runner.currentRep, 2)
+        if case .breakCountdown(let remaining) = runner.phase {
+            XCTAssertEqual(remaining, 45)
+        } else {
+            XCTFail("Phase should be breakCountdown")
+        }
+        
+        // Completing the break should change phase to .playing and currentRep remains 2
+        runner.completeBreak()
+        XCTAssertEqual(runner.currentBlockIndex, 0)
+        XCTAssertEqual(runner.currentRep, 2)
+        XCTAssertEqual(runner.phase, .playing)
+    }
+
+    func testRunner_InterBlockBreak_PreservesFirstRep() {
+        var runner = SessionRunnerState(template: PrototypeSession.sample)
+        runner.start()
+        
+        // Finish all reps of first block (reps = 5)
+        for i in 1...4 {
+            XCTAssertEqual(runner.currentRep, i)
+            runner.finishRep() // enters break countdown
+            runner.completeBreak() // goes to playing next rep
+        }
+        
+        // Now on Rep 5 (final rep of Block 0)
+        XCTAssertEqual(runner.currentRep, 5)
+        XCTAssertEqual(runner.currentBlockIndex, 0)
+        
+        // Finish Rep 5. Should advance to Block 1, set currentRep = 1, and since block 1 has restSeconds = 60, it should be in .breakCountdown.
+        runner.finishRep()
+        
+        XCTAssertEqual(runner.currentBlockIndex, 1)
+        XCTAssertEqual(runner.currentRep, 1) // Crucial check! Should be 1, not 2!
+        if case .breakCountdown(let remaining) = runner.phase {
+            XCTAssertEqual(remaining, 60)
+        } else {
+            XCTFail("Phase should be breakCountdown")
+        }
+        
+        // Let's tick the countdown. Ticking it down to 1 remaining.
+        for _ in 1..<60 {
+            let keepTicking = runner.tickCountdown()
+            XCTAssertTrue(keepTicking)
+            XCTAssertEqual(runner.currentRep, 1) // Rep must stay 1 during countdown
+        }
+        
+        // Final tick should return false and transition to playing, and currentRep remains 1
+        let keepTicking = runner.tickCountdown()
+        XCTAssertFalse(keepTicking)
+        XCTAssertEqual(runner.currentBlockIndex, 1)
+        XCTAssertEqual(runner.currentRep, 1) // Crucial! Still 1! No skipped first rep!
+        XCTAssertEqual(runner.phase, .playing)
+    }
+
+    func testRunner_RepsCompletedAndProgress_AccurateDuringRest() {
+        var runner = SessionRunnerState(template: PrototypeSession.sample)
+        runner.start()
+        
+        // Finish Rep 1. Under the new approach, currentRep is 2 during the rest.
+        runner.finishRep()
+        
+        // Total completed reps should be 1 (because Rep 1 is done, and we are resting before Rep 2).
+        XCTAssertEqual(runner.totalRepsCompleted, 1)
+        
+        // Verify sessionProgress includes that completed rep's weight.
+        // Block 0 reps = 5, totalBlocks = 3.
+        XCTAssertEqual(runner.sessionProgress, 0.2 / 3.0, accuracy: 0.0001)
+    }
+
+    func testLiveSessionController_ResumeAtOrAfterEnd_FinishesImmediately() {
+        let audioPlayer = FakeAudioPlayer()
+        let controller = LiveSessionController(
+            session: PrototypeSession.sample,
+            audioPlayer: audioPlayer
+        )
+        
+        controller.playCurrentBlock()
+        
+        // Pause the controller
+        controller.pausePlayback()
+        
+        // Set currentTime close to section end
+        let section = PrototypeSession.sample.blocks[0].section
+        audioPlayer.currentTime = section.endTime - 0.005 // remaining < 0.01s
+        
+        controller.resumePlayback()
+        
+        // Should immediately transition to rest or next state (finish playback)
+        XCTAssertEqual(controller.runner.currentRep, 2)
+        XCTAssertEqual(audioPlayer.playCallCount, 1) // Not called again on resume!
+    }
+
+    func testLiveSessionController_PausePlayback_InvalidatesTimersAndPausesPlayer() {
+        let audioPlayer = FakeAudioPlayer()
+        let controller = LiveSessionController(
+            session: PrototypeSession.sample,
+            audioPlayer: audioPlayer
+        )
+        
+        controller.playCurrentBlock()
+        
+        XCTAssertFalse(controller.isPaused)
+        XCTAssertNotNil(controller.playbackEndTimer)
+        
+        controller.pausePlayback()
+        
+        XCTAssertTrue(controller.isPaused)
+        XCTAssertNil(controller.playbackEndTimer)
+        XCTAssertEqual(audioPlayer.pauseCallCount, 1)
+    }
 }
 
 private final class FakeAudioPlayer: AudioPlaybackControlling {

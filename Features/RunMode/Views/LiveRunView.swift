@@ -42,15 +42,12 @@ struct LiveRunView: View {
     // MARK: - Active Session
 
     private func activeSessionView(block: PracticeBlock) -> some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
             // Countdown ring (only during break)
             countdownDisplay
                 .padding(.top, 4)
 
-            // Hero play/pause button — primary control, centered.
-            heroPlayButton
-
-            // Compact cue card (phase, pips, block title)
+            // Primary practice status cue card — houses the integrated play/pause control!
             cueStatusCard(block: block)
 
             // Block queue takes the remaining flexible vertical space
@@ -69,39 +66,11 @@ struct LiveRunView: View {
                 )
             }
 
-            // Bottom action bar — speed control only (main action handled by hero button).
+            // Bottom action bar — speed control only.
             bottomActionBar
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
-    }
-
-    // MARK: - Hero Play Button
-
-    private var heroPlayButton: some View {
-        Button(action: handleMainAction) {
-            ZStack {
-                if isActivePhase {
-                    Circle()
-                        .stroke(mainActionColor.opacity(0.45), lineWidth: 5)
-                        .frame(width: 112, height: 112)
-                        .scaleEffect(pulseScale)
-                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulseScale)
-                }
-                Circle()
-                    .fill(mainActionColor)
-                    .frame(width: 96, height: 96)
-                    .shadow(color: mainActionColor.opacity(0.4), radius: 14, x: 0, y: 4)
-                Image(systemName: mainActionIcon)
-                    .font(.system(size: 38, weight: .black))
-                    .foregroundStyle(mainActionForeground)
-            }
-            .contentShape(Circle())
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-        .sensoryFeedback(.impact(weight: .medium), trigger: controller.runner.phase)
-        .onAppear { pulseScale = 1.15 }
     }
 
     // MARK: - Countdown Display
@@ -130,70 +99,89 @@ struct LiveRunView: View {
         let accent = PPColors.blockColor(at: controller.runner.currentBlockIndex)
         let attempted = controller.repsAttempted[block.id] ?? 0
         let isComplete = controller.runner.phase == .complete
+        let borderColor: Color = isActivePhase
+            ? phaseStatusColor.opacity(0.6)
+            : (controller.runner.phase == .idle ? phaseStatusColor.opacity(0.5) : PPColors.cardBorder)
 
-        return HStack(spacing: 14) {
-            // Compact phase indicator (non-interactive — primary action is the hero button above).
-            ZStack {
-                Circle()
-                    .fill(phaseStatusColor.opacity(0.18))
-                    .frame(width: 40, height: 40)
-                Image(systemName: phaseIcon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(phaseStatusColor)
-            }
-
-            // Center column: title + phase label + pips
-            VStack(alignment: .leading, spacing: 4) {
-                if !isComplete {
-                    Text(block.title)
-                        .font(PPFonts.headline(15))
-                        .foregroundStyle(PPColors.textPrimary)
-                        .lineLimit(1)
+        return Button(action: handleMainAction) {
+            HStack(spacing: 16) {
+                // Visual play indicator — the WHOLE card is the button; this is just the icon.
+                ZStack {
+                    if isActivePhase {
+                        Circle()
+                            .stroke(phaseStatusColor.opacity(0.45), lineWidth: 4)
+                            .frame(width: 72, height: 72)
+                            .scaleEffect(pulseScale)
+                            .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: pulseScale)
+                    }
+                    Circle()
+                        .fill(phaseStatusColor)
+                        .frame(width: 60, height: 60)
+                        .shadow(color: phaseStatusColor.opacity(0.4), radius: 8, x: 0, y: 2)
+                    Image(systemName: mainActionIcon)
+                        .font(.system(size: 24, weight: .black))
+                        .foregroundStyle(mainActionForeground)
+                        .offset(x: mainActionIcon == "play.fill" ? 2 : 0)
                 }
-                Text(phaseLabel)
-                    .font(PPFonts.headline(18))
-                    .foregroundStyle(PPColors.textPrimary)
-                if !isComplete {
-                    HStack(spacing: 4) {
-                        ForEach(1...block.reps, id: \.self) { rep in
-                            Circle()
-                                .fill(rep <= attempted ? accent : PPColors.cardBorder)
-                                .frame(width: 9, height: 9)
-                                .animation(.spring(response: 0.3), value: attempted)
+
+                // Center column: title + phase label + pips
+                VStack(alignment: .leading, spacing: 4) {
+                    if !isComplete {
+                        Text(block.title)
+                            .font(PPFonts.headline(15))
+                            .foregroundStyle(PPColors.textPrimary)
+                            .lineLimit(1)
+                    }
+                    Text(phaseLabel)
+                        .font(PPFonts.headline(18))
+                        .foregroundStyle(PPColors.textPrimary)
+                    if !isComplete {
+                        HStack(spacing: 4) {
+                            ForEach(1...block.reps, id: \.self) { rep in
+                                Circle()
+                                    .fill(rep <= attempted ? accent : PPColors.cardBorder)
+                                    .frame(width: 9, height: 9)
+                                    .animation(.spring(response: 0.3), value: attempted)
+                            }
+                            Text("\(attempted)/\(block.reps)")
+                                .font(PPFonts.mono(11))
+                                .foregroundStyle(PPColors.textSecondary)
+                                .padding(.leading, 4)
                         }
-                        Text("\(attempted)/\(block.reps)")
+                    }
+                }
+                .multilineTextAlignment(.leading)
+
+                Spacer()
+
+                // Right column: rest seconds + mode (compact)
+                if !isComplete {
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Label("\(block.restSeconds)s", systemImage: "timer")
+                            .font(PPFonts.mono(12))
+                            .foregroundStyle(PPColors.accentOrange)
+                        Label(block.restartMode == .automatic ? "Auto" : "Manual",
+                              systemImage: block.restartMode == .automatic ? "repeat" : "hand.tap")
                             .font(PPFonts.mono(11))
-                            .foregroundStyle(PPColors.textSecondary)
-                            .padding(.leading, 4)
+                            .foregroundStyle(PPColors.textTertiary)
                     }
                 }
             }
-
-            Spacer()
-
-            // Right column: rest seconds + mode (compact)
-            if !isComplete {
-                VStack(alignment: .trailing, spacing: 4) {
-                    Label("\(block.restSeconds)s", systemImage: "timer")
-                        .font(PPFonts.mono(12))
-                        .foregroundStyle(PPColors.accentOrange)
-                    Label(block.restartMode == .automatic ? "Auto" : "Manual",
-                          systemImage: block.restartMode == .automatic ? "repeat" : "hand.tap")
-                        .font(PPFonts.mono(11))
-                        .foregroundStyle(PPColors.textTertiary)
-                }
-            }
+            .padding(16)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(isActivePhase ? PPColors.cardHighlight : PPColors.card)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .strokeBorder(borderColor, lineWidth: isActivePhase ? 1.5 : 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 18))
         }
-        .padding(14)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isActivePhase ? PPColors.cardHighlight : PPColors.card)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(PPColors.cardBorder, lineWidth: 1)
-        )
+        .buttonStyle(.plain)
+        .sensoryFeedback(.impact(weight: .medium), trigger: controller.runner.phase)
+        .onAppear { pulseScale = 1.15 }
     }
 
     // MARK: - Block Queue

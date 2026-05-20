@@ -83,6 +83,9 @@ struct PracticeBuilderView: View {
                     loadFromLibrary(savedMix)
                 }
             }
+            .onDisappear {
+                stopPreview()
+            }
         }
     }
 
@@ -446,6 +449,7 @@ struct PracticeBuilderView: View {
             return
         }
         if isPreviewPaused {
+            audioEngine.rate = 1.0
             let remaining = max(section.endTime - audioEngine.currentTime, 0.1)
             audioEngine.resumeUntil(remainingDuration: remaining)
             isPreviewPaused = false
@@ -475,6 +479,7 @@ struct PracticeBuilderView: View {
         let clamped = min(max(time, section.startTime), upperBound)
         do {
             try audioEngine.load(url: mix.localURL)
+            audioEngine.rate = 1.0
             audioEngine.playSegment(startTime: clamped, endTime: section.endTime)
             previewPlayhead = clamped
             previewingSection = section

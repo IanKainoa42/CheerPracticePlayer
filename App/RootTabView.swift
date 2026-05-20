@@ -49,7 +49,7 @@ struct RootTabView: View {
             controller.syncSession(newValue)
         }
         .onChange(of: selectedTab) { _, _ in
-            audioEngine.pause()
+            controller.pausePlayback()
         }
     }
 

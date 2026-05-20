@@ -26,7 +26,7 @@ final class LiveSessionController {
     private let audioPlayer: AudioPlaybackControlling
     private var countdownTimer: Timer?
     private var sessionTimer: Timer?
-    private var playbackEndTimer: Timer?
+    private(set) var playbackEndTimer: Timer?
     private var playheadTimer: Timer?
     private var currentSegmentEndTime: TimeInterval = 0
 
@@ -91,6 +91,14 @@ final class LiveSessionController {
     func resumePlayback() {
         guard isPaused else { return }
         let remainingAudio = max(currentSegmentEndTime - audioPlayer.currentTime, 0)
+        
+        guard remainingAudio > 0.01 else {
+            isPaused = false
+            onSectionPlaybackFinished()
+            return
+        }
+
+        audioPlayer.rate = playbackRate
         audioPlayer.resumeUntil(remainingDuration: remainingAudio)
         isPaused = false
         cancelPlaybackEnd()
@@ -316,9 +324,16 @@ final class LiveSessionController {
         guard let block = runner.currentBlock else { return }
         cancelPlaybackEnd()
 
+        let sectionDuration = block.section.duration
+        guard sectionDuration > 0.01 else {
+            onSectionPlaybackFinished()
+            return
+        }
+
         currentSegmentEndTime = block.section.endTime
         isPaused = false
 
+        audioPlayer.rate = playbackRate
         audioPlayer.playSegment(
             startTime: block.section.startTime,
             endTime: block.section.endTime
@@ -327,7 +342,6 @@ final class LiveSessionController {
         startPlayheadTimer()
 
         // Schedule auto-advance when the section finishes playing
-        let sectionDuration = block.section.duration
         let realDelay = sectionDuration / Double(max(playbackRate, 0.01))
         if realDelay > 0 {
             playbackEndTimer = Timer.scheduledTimer(withTimeInterval: realDelay, repeats: false) { [weak self] _ in
