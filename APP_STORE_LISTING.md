@@ -59,13 +59,13 @@ Secondary: Productivity
 © 2026 Ian Richardson
 
 ## Privacy Policy URL
-[HOST PRIVACY_POLICY.md AT A PUBLIC URL AND PASTE HERE]
+https://github.com/IanKainoa42/CheerPracticePlayer/blob/main/PRIVACY_POLICY.md
 
 ## Support URL
-[CFSD WEBSITE OR GITHUB PAGES URL — reuse CheerCenter's if same]
+https://github.com/IanKainoa42/CheerPracticePlayer/issues
 
 ## Marketing URL (optional)
-[OPTIONAL — leave blank for v1]
+*(leave blank for v1)*
 
 ## Version
 1.0
@@ -75,7 +75,7 @@ Initial release.
 
 ---
 
-## Screenshot Order (iPhone 6.7" — 1290 × 2796)
+## Screenshot Order (iPhone 6.9" — 1320 × 2868)
 
 1. **Home** — current session summary, total reps countdown
 2. **Builder** — waveform with section markers + block queue
