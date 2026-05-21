@@ -7,31 +7,47 @@ struct RootTabView: View {
     let audioEngine: AudioPlaybackEngine
 
     @State private var selectedTab: Int
+    @State private var requestImportFromBuild = false
 
     init(session: Binding<PrototypeSession>, controller: LiveSessionController, mixLibrary: MixLibraryStore, audioEngine: AudioPlaybackEngine) {
         self._session = session
         self.controller = controller
         self.mixLibrary = mixLibrary
         self.audioEngine = audioEngine
-        // Onboarding: land on Build when there's no mix yet
-        self._selectedTab = State(initialValue: session.wrappedValue.mix == nil ? 1 : 0)
+        // Land on Library when there are saved mixes; otherwise jump to Build so first-import has no extra tap.
+        let hasMixes = !mixLibrary.mixes.isEmpty
+        self._selectedTab = State(initialValue: hasMixes ? 0 : 1)
     }
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(session: session) { tab in
-                selectedTab = tab
-            }
+            HomeView(
+                session: session,
+                library: mixLibrary,
+                onSelectMix: { saved in
+                    loadFromLibrary(saved)
+                    selectedTab = 1
+                },
+                onImportTapped: {
+                    requestImportFromBuild = true
+                    selectedTab = 1
+                }
+            )
             .tabItem {
-                Label("Dashboard", systemImage: "house.fill")
+                Label("Library", systemImage: "tray.full")
             }
             .tag(0)
 
-            PracticeBuilderView(session: $session, mixLibrary: mixLibrary, audioEngine: audioEngine)
-                .tabItem {
-                    Label("Build", systemImage: "slider.horizontal.3")
-                }
-                .tag(1)
+            PracticeBuilderView(
+                session: $session,
+                mixLibrary: mixLibrary,
+                audioEngine: audioEngine,
+                requestImport: $requestImportFromBuild
+            )
+            .tabItem {
+                Label("Build", systemImage: "slider.horizontal.3")
+            }
+            .tag(1)
 
             LiveRunView(controller: controller)
                 .tabItem {
@@ -50,6 +66,15 @@ struct RootTabView: View {
         }
         .onChange(of: selectedTab) { _, _ in
             controller.pausePlayback()
+        }
+    }
+
+    private func loadFromLibrary(_ savedMix: SavedMix) {
+        session.mix = savedMix.mix
+        session.sections = savedMix.sections
+        session.blocks = []
+        for section in savedMix.sections {
+            session.addBlock(for: section)
         }
     }
 

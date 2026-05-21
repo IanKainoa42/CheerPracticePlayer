@@ -4,9 +4,9 @@ struct PracticeBuilderView: View {
     @Binding var session: PrototypeSession
     let mixLibrary: MixLibraryStore
     let audioEngine: AudioPlaybackEngine
+    @Binding var requestImport: Bool
 
     @State private var isImportingMix = false
-    @State private var isShowingLibrary = false
     @State private var importErrorMessage: String?
     @State private var waveformSamples: [Float] = []
     @State private var previewingSection: PracticeSection?
@@ -38,13 +38,6 @@ struct PracticeBuilderView: View {
                         } label: {
                             Label("Import Mix", systemImage: "square.and.arrow.down")
                         }
-
-                        Button {
-                            isShowingLibrary = true
-                        } label: {
-                            Label("Load from Library", systemImage: "tray.full")
-                        }
-                        .disabled(mixLibrary.mixes.isEmpty)
 
                         if session.mix != nil && !session.sections.isEmpty {
                             Button {
@@ -78,9 +71,21 @@ struct PracticeBuilderView: View {
             .task(id: session.mix?.id) {
                 await loadWaveform()
             }
-            .sheet(isPresented: $isShowingLibrary) {
-                MixLibraryView(library: mixLibrary) { savedMix in
-                    loadFromLibrary(savedMix)
+            .onAppear {
+                // When a mix arrives pre-populated (e.g. loaded from Library tab),
+                // skip the "Mark First Section" focus view and go straight to Program.
+                if session.mix != nil && !session.sections.isEmpty {
+                    hasFirstSectionSaved = true
+                }
+                if requestImport {
+                    requestImport = false
+                    isImportingMix = true
+                }
+            }
+            .onChange(of: requestImport) { _, newValue in
+                if newValue {
+                    requestImport = false
+                    isImportingMix = true
                 }
             }
             .onDisappear {
@@ -411,16 +416,6 @@ struct PracticeBuilderView: View {
     private func saveCurrentToLibrary() {
         guard let mix = session.mix else { return }
         mixLibrary.save(mix, sections: session.sections)
-    }
-
-    private func loadFromLibrary(_ savedMix: SavedMix) {
-        session.mix = savedMix.mix
-        session.sections = savedMix.sections
-        session.blocks = []
-        hasFirstSectionSaved = !savedMix.sections.isEmpty
-        if hasFirstSectionSaved {
-            ensureBlocksForAllSections()
-        }
     }
 
     private func ensureBlocksForAllSections() {
