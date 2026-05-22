@@ -70,3 +70,9 @@
 - **Category:** correction
 - **What happened:** Fixed `pausePlayback()` to no-op when phase is idle (the actual user-facing bug — tab-switch was eating the first Live tap). Test `testLiveSessionController_ResumeFromIdleWhilePaused_ClearsPausedFlagAndIsNoOp` failed because it asserted the OLD (broken) behavior was correct.
 - **Rule:** When a unit test fails after a bug fix that the user explicitly requested, read the test first — it may be enshrining the bug. If so, rewrite the test to assert the new correct behavior, with a comment explaining the regression. Don't revert the fix to make the test pass.
+
+## 2026-05-22 — Legacy Start/End sliders flashing before waveform (deprecated fallback)
+
+- **Category:** correction
+- **What happened:** PracticeBuilderView's `waveform` view had an if/else: when `waveformSamples.isEmpty`, it rendered a pair of legacy "Start"/"End" sliders. When samples arrived, it swapped to WaveformTrimmerView. The user saw the old sliders flash for ~half a second every time a section card mounted before audio decoded, then snap to the waveform. This is dead/deprecated UI — the trimmer is the only intended editor.
+- **Rule:** When replacing one UI control with another, remove the old branch entirely. WaveformTrimmerView already renders fine with empty `samples` (background + handles + dim overlay, no bars — Canvas returns early when count == 0). Always show the trimmer; never fall back to the legacy sliders. Also deleted the unused `timeSlider(label:value:onChange:)` helper. Related memory: [[feedback_waveform_ui.md]] — waveform is sacred, but legacy non-waveform fallbacks are not the waveform and should be pruned.

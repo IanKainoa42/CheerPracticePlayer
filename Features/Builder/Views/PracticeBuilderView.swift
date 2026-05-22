@@ -652,45 +652,32 @@ private struct ProgramSectionCard: View {
         }
     }
 
-    @ViewBuilder
     private var waveform: some View {
-        if waveformSamples.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                timeSlider(label: "Start", value: section.startTime) { newValue in
+        // Always show the waveform trimmer. Renders cleanly with empty samples
+        // (background + handles only) while audio is decoding — never flash the
+        // legacy Start/End sliders, which were deprecated UI.
+        WaveformTrimmerView(
+            samples: waveformSamples,
+            duration: maxDuration,
+            startTime: Binding(
+                get: { section.startTime },
+                set: { newValue in
                     var updated = section
-                    updated.startTime = min(newValue, updated.endTime)
+                    updated.startTime = newValue
                     onSectionChange(updated)
                 }
-                timeSlider(label: "End", value: section.endTime) { newValue in
+            ),
+            endTime: Binding(
+                get: { section.endTime },
+                set: { newValue in
                     var updated = section
-                    updated.endTime = max(newValue, updated.startTime)
+                    updated.endTime = newValue
                     onSectionChange(updated)
                 }
-            }
-        } else {
-            WaveformTrimmerView(
-                samples: waveformSamples,
-                duration: maxDuration,
-                startTime: Binding(
-                    get: { section.startTime },
-                    set: { newValue in
-                        var updated = section
-                        updated.startTime = newValue
-                        onSectionChange(updated)
-                    }
-                ),
-                endTime: Binding(
-                    get: { section.endTime },
-                    set: { newValue in
-                        var updated = section
-                        updated.endTime = newValue
-                        onSectionChange(updated)
-                    }
-                ),
-                playheadTime: playheadTime,
-                onSeek: onSeek
-            )
-        }
+            ),
+            playheadTime: playheadTime,
+            onSeek: onSeek
+        )
     }
 
     private var previewControl: some View {
@@ -825,22 +812,6 @@ private struct ProgramSectionCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
-    }
-
-    private func timeSlider(label: String, value: TimeInterval, onChange: @escaping (TimeInterval) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(label)
-                    .font(PPFonts.mono())
-                    .foregroundStyle(PPColors.textSecondary)
-                Spacer()
-                Text(Formatters.clock(value))
-                    .font(PPFonts.mono())
-                    .foregroundStyle(PPColors.accentYellow)
-            }
-            Slider(value: Binding(get: { value }, set: onChange), in: 0...maxDuration)
-                .tint(PPColors.accentYellow)
-        }
     }
 }
 
