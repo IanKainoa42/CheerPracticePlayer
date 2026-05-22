@@ -30,29 +30,6 @@ struct PracticeBuilderView: View {
                 }
             }
             .toolbarBackground(.hidden, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            isImportingMix = true
-                        } label: {
-                            Label("Import Mix", systemImage: "square.and.arrow.down")
-                        }
-
-                        if session.mix != nil && !session.sections.isEmpty {
-                            Button {
-                                saveCurrentToLibrary()
-                            } label: {
-                                Label("Save to Library", systemImage: "square.and.arrow.down.on.square")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(PPColors.textSecondary)
-                    }
-                }
-            }
             .fileImporter(
                 isPresented: $isImportingMix,
                 allowedContentTypes: MixImportService.supportedContentTypes,
@@ -86,6 +63,11 @@ struct PracticeBuilderView: View {
                 if newValue {
                     requestImport = false
                     isImportingMix = true
+                }
+            }
+            .onChange(of: session.sections) { _, _ in
+                if let mixID = session.mix?.id {
+                    mixLibrary.updateSections(for: mixID, sections: session.sections)
                 }
             }
             .onDisappear {
@@ -413,11 +395,6 @@ struct PracticeBuilderView: View {
 
     // MARK: - Actions
 
-    private func saveCurrentToLibrary() {
-        guard let mix = session.mix else { return }
-        mixLibrary.save(mix, sections: session.sections)
-    }
-
     private func ensureBlocksForAllSections() {
         for section in session.sections where !session.blocks.contains(where: { $0.section.id == section.id }) {
             session.addBlock(for: section)
@@ -572,6 +549,7 @@ struct PracticeBuilderView: View {
                     session.blocks = []
                     session.addSection(PracticeSection.blank(totalDuration: importedMix.duration))
                     hasFirstSectionSaved = false
+                    mixLibrary.save(importedMix, sections: session.sections)
                 }
             } catch {
                 await MainActor.run {

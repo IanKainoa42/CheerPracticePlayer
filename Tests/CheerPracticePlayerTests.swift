@@ -294,10 +294,11 @@ final class CheerPracticePlayerTests: XCTestCase {
         }
     }
 
-    func testLiveSessionController_ResumeFromIdleWhilePaused_ClearsPausedFlagAndIsNoOp() {
-        // Defensive: pausing from idle (no active section loaded) and then tapping
-        // play must not crash or leave isPaused stuck. The next play tap should
-        // start a fresh block.
+    func testLiveSessionController_PauseFromIdle_DoesNotSetIsPaused() {
+        // Tab-switches call pausePlayback() unconditionally. If the controller is
+        // idle (no active session) it must stay un-paused — otherwise the next
+        // tap on the Live cue card is swallowed clearing the stale flag instead
+        // of starting playback.
         let audioPlayer = FakeAudioPlayer()
         let controller = LiveSessionController(
             session: PrototypeSession.sample,
@@ -305,13 +306,11 @@ final class CheerPracticePlayerTests: XCTestCase {
         )
 
         controller.pausePlayback()
-        XCTAssertTrue(controller.isPaused)
+        XCTAssertFalse(controller.isPaused, "Pausing while idle must be a no-op for the paused flag")
 
-        controller.resumePlayback()
-
-        XCTAssertFalse(controller.isPaused)
-        XCTAssertEqual(audioPlayer.playCallCount, 0,
-                       "Resume from idle must not start audio on its own")
+        // Subsequent play tap should start audio normally.
+        controller.playCurrentBlock()
+        XCTAssertEqual(audioPlayer.playCallCount, 1)
     }
 
     // MARK: - MixLibraryStore
@@ -341,12 +340,20 @@ final class CheerPracticePlayerTests: XCTestCase {
     func testMixLibraryStore_ValidFile_LoadsMixesIntact() {
         let temp = FileManager.default.temporaryDirectory
             .appendingPathComponent("cpp-mix-store-test-\(UUID().uuidString).json")
-        defer { cleanupTestArtifacts(near: temp) }
+        // load() drops mixes whose audio file is missing — create a real placeholder
+        // so this entry survives the existence check.
+        let audioPath = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cpp-mix-audio-\(UUID().uuidString).m4a")
+        try? Data().write(to: audioPath)
+        defer {
+            cleanupTestArtifacts(near: temp)
+            try? FileManager.default.removeItem(at: audioPath)
+        }
 
         let mix = ImportedMix(
             id: UUID(),
             originalFileName: "test.m4a",
-            localPath: "/tmp/test.m4a",
+            localPath: audioPath.path,
             duration: 120
         )
         let saved = [SavedMix(id: UUID(), mix: mix, sections: [], dateAdded: Date())]
@@ -359,6 +366,32 @@ final class CheerPracticePlayerTests: XCTestCase {
         XCTAssertEqual(store.mixes.first?.mix.originalFileName, "test.m4a")
         XCTAssertTrue(FileManager.default.fileExists(atPath: temp.path),
                       "A valid file must NOT be backed up")
+    }
+
+    func testMixLibraryStore_StaleMix_IsFilteredOutAndPersisted() {
+        // Regression: library used to show rows pointing at deleted audio files,
+        // and tapping them did nothing because the path was stale. load() now
+        // filters missing-file entries and rewrites the JSON.
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cpp-mix-store-test-\(UUID().uuidString).json")
+        defer { cleanupTestArtifacts(near: temp) }
+
+        let mix = ImportedMix(
+            id: UUID(),
+            originalFileName: "ghost.m4a",
+            localPath: "/tmp/definitely-does-not-exist-\(UUID().uuidString).m4a",
+            duration: 120
+        )
+        let saved = [SavedMix(id: UUID(), mix: mix, sections: [], dateAdded: Date())]
+        try! JSONEncoder().encode(saved).write(to: temp)
+
+        let store = MixLibraryStore(fileURL: temp)
+        XCTAssertEqual(store.mixes.count, 0, "Stale entry must be dropped")
+
+        // Reload should see the persisted (empty) library, proving the cleaned
+        // state was written back to disk.
+        let reloaded = MixLibraryStore(fileURL: temp)
+        XCTAssertEqual(reloaded.mixes.count, 0)
     }
 
     func testSoundEffectsPlayer_PreparesAndSynthesizesWavData() {

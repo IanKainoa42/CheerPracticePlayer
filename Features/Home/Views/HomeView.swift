@@ -19,6 +19,18 @@ struct HomeView: View {
             }
             .navigationTitle("Library")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                if !library.mixes.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: onImportTapped) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(PPColors.accentYellow)
+                        }
+                        .accessibilityLabel("Import Mix")
+                    }
+                }
+            }
         }
     }
 

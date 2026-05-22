@@ -18,7 +18,7 @@ final class LiveSessionController {
     /// Playback rate multiplier. Mirrors the engine's rate so the UI can observe it.
     private(set) var playbackRate: Float = 1.0
 
-    static let availablePlaybackRates: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5]
+    static let availablePlaybackRates: [Float] = [0.7, 0.8, 0.9, 1.0, 1.05, 1.10]
 
     /// Minimum fraction of a section that must be played before the rep counts as attempted.
     static let repCompletionThreshold: Double = 0.75
@@ -173,11 +173,23 @@ final class LiveSessionController {
     }
 
     func pausePlayback() {
+        // Always stop audio; safe to call when nothing is playing.
+        audioPlayer.pause()
+
+        // Only transition into the "paused" UI state if there's actually a
+        // session in flight. Otherwise tab-switches would set isPaused=true on
+        // an idle controller, eating the first tap on the Live cue card.
+        switch runner.phase {
+        case .idle, .complete:
+            return
+        case .playing, .breakCountdown:
+            break
+        }
+
         stopCountdown()
         cancelPlaybackEnd()
         stopPlayheadTimer()
         stopSessionTimer()
-        audioPlayer.pause()
         isPaused = true
         audioStatus = "Paused"
     }

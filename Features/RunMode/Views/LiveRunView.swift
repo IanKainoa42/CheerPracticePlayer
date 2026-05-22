@@ -4,6 +4,9 @@ struct LiveRunView: View {
     @Bindable var controller: LiveSessionController
 
     @State private var pulseScale: CGFloat = 1.0
+    /// Bumped each time the user taps the cue card while it is actively playing.
+    /// Acts as a trigger for warning haptics — pause requires a hold gesture.
+    @State private var holdGuardNudgeCount: Int = 0
 
     var body: some View {
         NavigationStack {
@@ -95,7 +98,29 @@ struct LiveRunView: View {
 
     // MARK: - Cue Status Card
 
+    @ViewBuilder
     private func cueStatusCard(block: PracticeBlock) -> some View {
+        let cardBody = cueCardContent(block: block)
+        if isActivePhase {
+            // While actively playing, the card is "locked" — a stray tap will not
+            // stop the mix. A long-press is required to pause.
+            cardBody
+                .onTapGesture { holdGuardNudgeCount &+= 1 }
+                .onLongPressGesture(minimumDuration: 0.6) {
+                    controller.pausePlayback()
+                }
+                .sensoryFeedback(.impact(weight: .medium), trigger: controller.runner.phase)
+                .sensoryFeedback(.warning, trigger: holdGuardNudgeCount)
+                .onAppear { pulseScale = 1.15 }
+        } else {
+            Button(action: handleMainAction) { cardBody }
+                .buttonStyle(.plain)
+                .sensoryFeedback(.impact(weight: .medium), trigger: controller.runner.phase)
+                .onAppear { pulseScale = 1.15 }
+        }
+    }
+
+    private func cueCardContent(block: PracticeBlock) -> some View {
         let accent = PPColors.blockColor(at: controller.runner.currentBlockIndex)
         let attempted = controller.repsAttempted[block.id] ?? 0
         let isComplete = controller.runner.phase == .complete
@@ -103,8 +128,7 @@ struct LiveRunView: View {
             ? phaseStatusColor.opacity(0.6)
             : (controller.runner.phase == .idle ? phaseStatusColor.opacity(0.5) : PPColors.cardBorder)
 
-        return Button(action: handleMainAction) {
-            HStack(spacing: 16) {
+        return HStack(spacing: 16) {
                 // Visual play indicator — the WHOLE card is the button; this is just the icon.
                 // Frame is locked so the pulse animation cannot reflow the HStack.
                 ZStack {
@@ -124,7 +148,7 @@ struct LiveRunView: View {
                     Image(systemName: mainActionIcon)
                         .font(.system(size: 24, weight: .black))
                         .foregroundStyle(mainActionForeground)
-                        .offset(x: mainActionIcon == "play.fill" ? 2 : 0)
+                        .frame(width: 30, height: 30)
                 }
                 .frame(width: 84, height: 84)
 
@@ -182,10 +206,6 @@ struct LiveRunView: View {
                     .strokeBorder(borderColor, lineWidth: isActivePhase ? 1.5 : 1)
             )
             .contentShape(RoundedRectangle(cornerRadius: 18))
-        }
-        .buttonStyle(.plain)
-        .sensoryFeedback(.impact(weight: .medium), trigger: controller.runner.phase)
-        .onAppear { pulseScale = 1.15 }
     }
 
     // MARK: - Block Queue
@@ -261,14 +281,8 @@ struct LiveRunView: View {
     }
 
     private func formattedRate(_ rate: Float) -> String {
-        let rounded = (rate * 100).rounded() / 100
-        if abs(rounded - rounded.rounded()) < 0.001 {
-            return String(format: "%.0f×", rounded)
-        }
-        let trimmed = String(format: "%.2f", rounded)
-            .replacingOccurrences(of: #"0+$"#, with: "", options: .regularExpression)
-            .replacingOccurrences(of: #"\.$"#, with: "", options: .regularExpression)
-        return "\(trimmed)×"
+        let percent = Int((rate * 100).rounded())
+        return "\(percent)%"
     }
 
     // MARK: - Empty State
@@ -318,7 +332,7 @@ struct LiveRunView: View {
         case .idle:
             return "Tap Play to Begin"
         case .playing:
-            return "Playing"
+            return "Playing — hold to pause"
         case .breakCountdown(let secondsRemaining):
             if secondsRemaining <= PracticeBlock.countdownTailSeconds {
                 return "Get ready — \(secondsRemaining)"
@@ -455,6 +469,7 @@ private struct BlockQueueRow: View {
             .padding(.vertical, 12)
             .padding(.horizontal, 16)
             .background(isActive ? PPColors.cardHighlight : Color.clear)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

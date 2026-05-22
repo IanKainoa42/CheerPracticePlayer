@@ -52,3 +52,21 @@
 - **What happened:** After the unified-status-card refactor (c5df974), the cue card's pulse ring uses `.animation(.easeInOut(...).repeatForever(autoreverses: true), value: pulseScale)`. On iPadOS 18, a SwiftUI `repeatForever` animation pins the main RunLoop into tracking mode for the duration of the animation. `Timer.scheduledTimer(withTimeInterval:repeats:block:)` registers in `.default` RunLoop mode, which is preempted while the loop is in tracking mode — so `playbackEndTimer` (and the countdown / playhead / session timers) silently never fired. Net symptom on iPad: tapping Play started the section but audio rolled past the section endTime and kept playing into the rest of the track. The `DispatchWorkItem` auto-stop in `AudioPlaybackEngine` also missed the pause because it captured `[weak player]` — a stale reference if anything between schedule and fire replaced the AVAudioPlayer.
 - **Rule:** Any `Timer` whose firing is load-bearing for app correctness MUST be registered with `RunLoop.main.add(_, forMode: .common)` — not `Timer.scheduledTimer`. `LiveSessionController.makeCommonModeTimer(...)` centralizes this. Also: capture `[weak self]` (the engine) in `AudioPlaybackEngine.scheduleAutoStop` so `self?.player?.pause()` always targets the current player.
 - **Detection:** If you ever see "audio plays past section end" or "countdown doesn't tick on Live tab" — first check whether the affected RunLoop-driven Timer is in `.common` mode. Pulse/breathing/ring animations elsewhere in the same view can starve `.default` timers.
+
+## 2026-05-22 — Shadowing release install masks debug build changes
+
+- **Category:** correction
+- **What happened:** Built Mac Catalyst debug, launched the `.app` from DerivedData, told user to test. User reported "same thing" — they were actually launching `/Applications/CheerPracticePlayer.app` (a TestFlight/release iOS-on-Mac install from May 20) via the dock/Launchpad, not the fresh DerivedData build.
+- **Rule:** Before declaring an iOS/Catalyst rebuild "ready to test," check `find /Applications ~/Applications -name "<App>.app"` and `xcrun devicectl list devices` for shadowing installs. If a release/TestFlight install exists, install to a real device (`xcrun devicectl device install app --device <id> <path-to-.app>` then `process launch`) rather than relying on `open` of the DerivedData bundle — the user's dock/home-screen icon points at the older one.
+
+## 2026-05-22 — Hold-to-pause: branch view by phase, don't simultaneousGesture a Button
+
+- **Category:** best_practice
+- **What happened:** Wanted hold-to-pause guard on the Live cue card during active play (tap = no-op, long-press = pause). First instinct: keep the existing `Button(action:)` and add `.simultaneousGesture(LongPressGesture(...))`. SwiftUI `Button` consumes touch-up before LongPressGesture resolves, so the long-press fires unreliably.
+- **Rule:** Use a `@ViewBuilder` branch on phase: during the locked state, render the same content as a plain view with `.onTapGesture` (warning haptic) + `.onLongPressGesture(minimumDuration: 0.6)` (action); during unlocked state, render the existing `Button`. Extract the visual body into a separate function so both branches share it. Add `.sensoryFeedback(.warning, trigger: Int)` driven by a `@State` counter incremented in onTap for the haptic nudge.
+
+## 2026-05-22 — Tests can encode the bug you're being asked to fix
+
+- **Category:** correction
+- **What happened:** Fixed `pausePlayback()` to no-op when phase is idle (the actual user-facing bug — tab-switch was eating the first Live tap). Test `testLiveSessionController_ResumeFromIdleWhilePaused_ClearsPausedFlagAndIsNoOp` failed because it asserted the OLD (broken) behavior was correct.
+- **Rule:** When a unit test fails after a bug fix that the user explicitly requested, read the test first — it may be enshrining the bug. If so, rewrite the test to assert the new correct behavior, with a comment explaining the regression. Don't revert the fix to make the test pass.

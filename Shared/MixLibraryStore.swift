@@ -55,7 +55,15 @@ final class MixLibraryStore {
     private func load() {
         guard let data = try? Data(contentsOf: fileURL) else { return }
         do {
-            mixes = try JSONDecoder().decode([SavedMix].self, from: data)
+            let decoded = try JSONDecoder().decode([SavedMix].self, from: data)
+            // Drop entries whose audio file no longer exists on disk. App
+            // container path can shift across reinstalls and the user has no
+            // reason to see — let alone tap — a row that cannot play.
+            let surviving = decoded.filter { FileManager.default.fileExists(atPath: $0.mix.localPath) }
+            mixes = surviving
+            if surviving.count != decoded.count {
+                persist()
+            }
         } catch {
             // Don't silently overwrite a corrupt-but-present library on the next
             // persist(); rename it aside so the user (or a future migration) can
