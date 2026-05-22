@@ -5,6 +5,10 @@ build/
 *.xcodeproj/xcuserdata/
 *.xcuserdatad/
 *.xcuserstate
+*.log
+
+# Design scratch
+*.pen
 
 # SwiftPM
 .build/
