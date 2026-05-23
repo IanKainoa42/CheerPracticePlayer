@@ -64,9 +64,6 @@ struct RootTabView: View {
         .onChange(of: session) { _, newValue in
             controller.syncSession(newValue)
         }
-        .onChange(of: selectedTab) { _, _ in
-            controller.pausePlayback()
-        }
     }
 
     private func loadFromLibrary(_ savedMix: SavedMix) {

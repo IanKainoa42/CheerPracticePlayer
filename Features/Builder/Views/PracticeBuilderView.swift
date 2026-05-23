@@ -437,7 +437,9 @@ struct PracticeBuilderView: View {
     }
 
     private func stopPreview() {
-        audioEngine.pause()
+        if previewingSection != nil {
+            audioEngine.pause()
+        }
         previewEndTask?.cancel()
         previewEndTask = nil
         previewingSection = nil
