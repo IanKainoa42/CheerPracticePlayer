@@ -520,11 +520,10 @@ struct PracticeBuilderView: View {
     }
 
     private func loadWaveform() async {
-        guard let path = session.mix?.localPath else {
+        guard let url = session.mix?.localURL else {
             waveformSamples = []
             return
         }
-        let url = URL(fileURLWithPath: path)
         do {
             waveformSamples = try await WaveformExtractor.extractSamples(from: url)
         } catch {
