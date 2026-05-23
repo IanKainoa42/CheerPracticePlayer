@@ -12,7 +12,7 @@ final class CheerPracticePlayerTests: XCTestCase {
 
         controller.playCurrentBlock()
 
-        XCTAssertEqual(audioPlayer.loadedURL?.path, PrototypeSession.sample.mix?.localPath)
+        XCTAssertEqual(audioPlayer.loadedURL?.lastPathComponent, PrototypeSession.sample.mix?.fileName)
         XCTAssertEqual(audioPlayer.seekTimes, [PrototypeSession.sample.blocks[0].section.startTime])
         XCTAssertEqual(audioPlayer.playCallCount, 1)
         XCTAssertEqual(controller.runner.phase, .playing)
@@ -109,7 +109,14 @@ final class CheerPracticePlayerTests: XCTestCase {
 
     func testSessionTotalDuration_SumsBlocks() {
         let session = PrototypeSession.sample
-        let manualTotal = session.blocks.reduce(0) { $0 + $1.estimatedDuration }
+        let manualTotal = session.blocks.enumerated().reduce(0) { total, pair in
+            let (index, block) = pair
+            let reps = Double(block.reps)
+            let duration = block.section.duration * reps
+            let internalRest = Double(max(block.reps - 1, 0) * block.restSeconds)
+            let externalRest = index > 0 ? Double(block.restSeconds) : 0
+            return total + duration + internalRest + externalRest
+        }
 
         XCTAssertEqual(session.totalEstimatedDuration, manualTotal, accuracy: 0.001)
     }
@@ -167,8 +174,8 @@ final class CheerPracticePlayerTests: XCTestCase {
         runner.start()
         
         // Finish all reps of first block (reps = 5)
-        for i in 1...4 {
-            XCTAssertEqual(runner.currentRep, i)
+        for index in 1...4 {
+            XCTAssertEqual(runner.currentRep, index)
             runner.finishRep() // enters break countdown
             runner.completeBreak() // goes to playing next rep
         }
@@ -341,24 +348,33 @@ final class CheerPracticePlayerTests: XCTestCase {
         let temp = FileManager.default.temporaryDirectory
             .appendingPathComponent("cpp-mix-store-test-\(UUID().uuidString).json")
         // load() drops mixes whose audio file is missing — create a real placeholder
-        // so this entry survives the existence check.
-        let audioPath = FileManager.default.temporaryDirectory
-            .appendingPathComponent("cpp-mix-audio-\(UUID().uuidString).m4a")
-        try? Data().write(to: audioPath)
+        // in the expected Application Support subpath so this entry survives the existence check.
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let audioDir = appSupport.appendingPathComponent("CheerPracticePlayer/ImportedMixes", isDirectory: true)
+        try? FileManager.default.createDirectory(at: audioDir, withIntermediateDirectories: true)
+        
+        let fileName = "cpp-mix-audio-\(UUID().uuidString).m4a"
+        let audioURL = audioDir.appendingPathComponent(fileName)
+        try? Data().write(to: audioURL)
+        
         defer {
             cleanupTestArtifacts(near: temp)
-            try? FileManager.default.removeItem(at: audioPath)
+            try? FileManager.default.removeItem(at: audioURL)
         }
 
         let mix = ImportedMix(
             id: UUID(),
             originalFileName: "test.m4a",
-            localPath: audioPath.path,
+            fileName: fileName,
             duration: 120
         )
         let saved = [SavedMix(id: UUID(), mix: mix, sections: [], dateAdded: Date())]
-        let data = try! JSONEncoder().encode(saved)
-        try! data.write(to: temp)
+        do {
+            let data = try JSONEncoder().encode(saved)
+            try data.write(to: temp)
+        } catch {
+            XCTFail("Failed to encode/write test data: \(error)")
+        }
 
         let store = MixLibraryStore(fileURL: temp)
 
@@ -379,11 +395,15 @@ final class CheerPracticePlayerTests: XCTestCase {
         let mix = ImportedMix(
             id: UUID(),
             originalFileName: "ghost.m4a",
-            localPath: "/tmp/definitely-does-not-exist-\(UUID().uuidString).m4a",
+            fileName: "definitely-does-not-exist-\(UUID().uuidString).m4a",
             duration: 120
         )
         let saved = [SavedMix(id: UUID(), mix: mix, sections: [], dateAdded: Date())]
-        try! JSONEncoder().encode(saved).write(to: temp)
+        do {
+            try JSONEncoder().encode(saved).write(to: temp)
+        } catch {
+            XCTFail("Failed to encode/write test data: \(error)")
+        }
 
         let store = MixLibraryStore(fileURL: temp)
         XCTAssertEqual(store.mixes.count, 0, "Stale entry must be dropped")

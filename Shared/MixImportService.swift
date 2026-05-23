@@ -48,7 +48,7 @@ struct MixImportService {
         return ImportedMix(
             id: UUID(),
             originalFileName: sourceURL.lastPathComponent,
-            localPath: destinationURL.path,
+            fileName: destinationURL.lastPathComponent,
             duration: duration
         )
     }

@@ -18,16 +18,16 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
     private var stopTask: DispatchWorkItem?
     private var fadeTimer: Timer?
     private var sessionConfigured = false
-    private var _rate: Float = 1.0
+    private var playbackRate: Float = 1.0
     private var segmentEndTime: TimeInterval = 0
 
     var currentTime: TimeInterval { player?.currentTime ?? 0 }
 
     var rate: Float {
-        get { _rate }
+        get { playbackRate }
         set {
             let clamped = max(0.25, min(newValue, 3.0))
-            _rate = clamped
+            playbackRate = clamped
             player?.rate = clamped
 
             if let player = player, player.isPlaying {
@@ -47,7 +47,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
 
         let player = try AVAudioPlayer(contentsOf: url)
         player.enableRate = true
-        player.rate = _rate
+        player.rate = playbackRate
         player.prepareToPlay()
         self.player = player
         loadedURL = url
@@ -79,12 +79,12 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
 
         player.currentTime = playStartTime
         player.enableRate = true
-        player.rate = _rate
+        player.rate = playbackRate
 
         if actualPreRoll > 0.05 {
             player.volume = 0.0
             player.play()
-            let realFadeDuration = actualPreRoll / Double(max(_rate, 0.01))
+            let realFadeDuration = actualPreRoll / Double(max(playbackRate, 0.01))
             performVolumeFade(from: 0.0, to: 1.0, duration: realFadeDuration)
         } else {
             player.volume = 1.0
@@ -93,7 +93,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
 
         // Total audio distance from playStartTime to safeEnd (endTime)
         let totalAudioDistance = safeEnd - playStartTime
-        let realDelayToStop = totalAudioDistance / Double(max(_rate, 0.01))
+        let realDelayToStop = totalAudioDistance / Double(max(playbackRate, 0.01))
         scheduleAutoStop(after: realDelayToStop)
     }
 
@@ -104,7 +104,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         fadeTimer?.invalidate()
         fadeTimer = nil
         activateSession()
-        
+
         segmentEndTime = player.currentTime + remainingDuration
 
         guard remainingDuration > 0.01 else {
@@ -114,17 +114,17 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         }
 
         player.enableRate = true
-        player.rate = _rate
+        player.rate = playbackRate
 
         // Fade in quickly on manual resume to avoid abrupt volume hits
         let resumeFadeDuration: TimeInterval = 0.2
         player.volume = 0.0
         player.play()
 
-        let realFadeDuration = min(resumeFadeDuration, remainingDuration / Double(max(_rate, 0.01)))
+        let realFadeDuration = min(resumeFadeDuration, remainingDuration / Double(max(playbackRate, 0.01)))
         performVolumeFade(from: 0.0, to: 1.0, duration: realFadeDuration)
 
-        let realDelay = remainingDuration / Double(max(_rate, 0.01))
+        let realDelay = remainingDuration / Double(max(playbackRate, 0.01))
         scheduleAutoStop(after: realDelay)
     }
 
@@ -138,7 +138,8 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
 
     func rescheduleStop(remainingDuration: TimeInterval) {
         stopTask?.cancel()
-        scheduleAutoStop(after: max(remainingDuration, 0))
+        let realDelay = remainingDuration / Double(max(playbackRate, 0.01))
+        scheduleAutoStop(after: max(realDelay, 0))
     }
 
     func seek(to time: TimeInterval) {
@@ -167,9 +168,9 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         player.volume = startVol
 
         // Register the timer in the .common run loop mode so scrolling/animations do not starve it
-        let timer = Timer(timeInterval: stepInterval, repeats: true) { [weak self] t in
+        let timer = Timer(timeInterval: stepInterval, repeats: true) { [weak self] timer in
             guard let self = self, let player = self.player else {
-                t.invalidate()
+                timer.invalidate()
                 return
             }
 
@@ -178,7 +179,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
             player.volume = max(0.0, min(newVol, 1.0))
 
             if currentStep >= steps {
-                t.invalidate()
+                timer.invalidate()
                 self.fadeTimer = nil
                 player.volume = endVol
                 completion?()
@@ -190,7 +191,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
 
     private func scheduleAutoStop(after realDelay: TimeInterval) {
         guard realDelay > 0 else { return }
-        
+
         let task = DispatchWorkItem { [weak self] in
             guard let self = self, let player = self.player else { return }
             // Smoothly fade out over 1.0 seconds past the endTime

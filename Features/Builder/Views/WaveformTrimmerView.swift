@@ -14,13 +14,13 @@ struct WaveformTrimmerView: View {
     private let minSelection: TimeInterval = 0.5
 
     var body: some View {
-        GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            let sf = duration > 0 ? CGFloat(startTime / duration) : 0
-            let ef = duration > 0 ? CGFloat(endTime / duration) : 1
-            let leftX = sf * w
-            let rightX = ef * w
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let height = geometry.size.height
+            let startFraction = duration > 0 ? CGFloat(startTime / duration) : 0
+            let endFraction = duration > 0 ? CGFloat(endTime / duration) : 1
+            let leftX = startFraction * width
+            let rightX = endFraction * width
 
             ZStack {
                 // Background
@@ -28,7 +28,7 @@ struct WaveformTrimmerView: View {
                     .fill(Color(white: 0.06))
 
                 // Waveform bars
-                waveformCanvas(startFrac: Double(sf), endFrac: Double(ef))
+                waveformCanvas(startFrac: Double(startFraction), endFrac: Double(endFraction))
 
                 // Dimmed region — left
                 Rectangle()
@@ -39,60 +39,60 @@ struct WaveformTrimmerView: View {
                 // Dimmed region — right
                 Rectangle()
                     .fill(Color.black.opacity(0.6))
-                    .frame(width: max(w - rightX, 0))
+                    .frame(width: max(width - rightX, 0))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
 
                 // Top border
-                trimBorder(leftX: leftX, rightX: rightX, height: h, top: true)
+                trimBorder(leftX: leftX, rightX: rightX, height: height, top: true)
 
                 // Bottom border
-                trimBorder(leftX: leftX, rightX: rightX, height: h, top: false)
+                trimBorder(leftX: leftX, rightX: rightX, height: height, top: false)
 
                 // Left handle (Start)
-                handle(isStart: true, height: h)
-                    .position(x: leftX, y: h / 2)
+                handle(isStart: true, height: height)
+                    .position(x: leftX, y: height / 2)
                     .gesture(
                         DragGesture(coordinateSpace: .named("trimmer"))
                             .onChanged { value in
                                 let maxTime = endTime - minSelection
-                                let newTime = Double(value.location.x / w) * duration
+                                let newTime = Double(value.location.x / width) * duration
                                 startTime = max(0, min(newTime, maxTime))
                             }
                     )
 
                 // Right handle (End)
-                handle(isStart: false, height: h)
-                    .position(x: rightX, y: h / 2)
+                handle(isStart: false, height: height)
+                    .position(x: rightX, y: height / 2)
                     .gesture(
                         DragGesture(coordinateSpace: .named("trimmer"))
                             .onChanged { value in
                                 let minTime = startTime + minSelection
-                                let newTime = Double(value.location.x / w) * duration
+                                let newTime = Double(value.location.x / width) * duration
                                 endTime = min(duration, max(newTime, minTime))
                             }
                     )
 
                 // Playhead — sits above waveform, below handles
                 if let playheadTime, duration > 0 {
-                    let px = CGFloat(max(0, min(playheadTime / duration, 1))) * w
+                    let playheadX = CGFloat(max(0, min(playheadTime / duration, 1))) * width
                     ZStack(alignment: .top) {
                         Rectangle()
                             .fill(Color.white.opacity(0.85))
-                            .frame(width: 2, height: h)
+                            .frame(width: 2, height: height)
                         Circle()
                             .fill(Color.white)
                             .frame(width: 7, height: 7)
                             .offset(y: 2)
                     }
                     .shadow(color: .white.opacity(0.5), radius: 4)
-                    .position(x: px, y: h / 2)
+                    .position(x: playheadX, y: height / 2)
                     .allowsHitTesting(false)
                 }
             }
             .coordinateSpace(name: "trimmer")
             .onTapGesture(count: 1, coordinateSpace: .named("trimmer")) { location in
                 guard let onSeek, duration > 0 else { return }
-                onSeek(max(0, min(Double(location.x / w) * duration, duration)))
+                onSeek(max(0, min(Double(location.x / width) * duration, duration)))
             }
         }
         .frame(height: 88)
@@ -107,25 +107,25 @@ struct WaveformTrimmerView: View {
             guard count > 0 else { return }
 
             let gap: CGFloat = 2
-            let barW = max((size.width - CGFloat(count - 1) * gap) / CGFloat(count), 1.5)
+            let barWidth = max((size.width - CGFloat(count - 1) * gap) / CGFloat(count), 1.5)
 
-            for (i, amp) in samples.enumerated() {
-                let x = CGFloat(i) * (barW + gap)
-                let center = Double((x + barW / 2) / size.width)
-                let inside = center >= startFrac && center <= endFrac
+            for (index, amplitude) in samples.enumerated() {
+                let xPosition = CGFloat(index) * (barWidth + gap)
+                let centerFraction = Double((xPosition + barWidth / 2) / size.width)
+                let isInsideSelection = centerFraction >= startFrac && centerFraction <= endFrac
 
-                let barH = max(CGFloat(amp) * size.height * 0.78, 2)
-                let y = (size.height - barH) / 2
-                let rect = CGRect(x: x, y: y, width: barW, height: barH)
+                let barHeight = max(CGFloat(amplitude) * size.height * 0.78, 2)
+                let yPosition = (size.height - barHeight) / 2
+                let rect = CGRect(x: xPosition, y: yPosition, width: barWidth, height: barHeight)
 
                 let color: Color
-                if inside {
+                if isInsideSelection {
                     // Gradient from yellow to orange across the selection
-                    let t = (center - startFrac) / max(endFrac - startFrac, 0.001)
-                    let r = 1.0
-                    let g = 0.92 - t * 0.50   // yellow -> orange
-                    let b = 0.23 - t * 0.02
-                    color = Color(red: r, green: g, blue: b).opacity(0.9)
+                    let threshold = (centerFraction - startFrac) / max(endFrac - startFrac, 0.001)
+                    let redVal = 1.0
+                    let greenVal = 0.92 - threshold * 0.50   // yellow -> orange
+                    let blueVal = 0.23 - threshold * 0.02
+                    color = Color(red: redVal, green: greenVal, blue: blueVal).opacity(0.9)
                 } else {
                     color = .white.opacity(0.15)
                 }

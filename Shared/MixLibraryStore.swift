@@ -59,7 +59,7 @@ final class MixLibraryStore {
             // Drop entries whose audio file no longer exists on disk. App
             // container path can shift across reinstalls and the user has no
             // reason to see — let alone tap — a row that cannot play.
-            let surviving = decoded.filter { FileManager.default.fileExists(atPath: $0.mix.localPath) }
+            let surviving = decoded.filter { FileManager.default.fileExists(atPath: $0.mix.localURL.path) }
             mixes = surviving
             if surviving.count != decoded.count {
                 persist()
