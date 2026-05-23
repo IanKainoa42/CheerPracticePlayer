@@ -48,8 +48,25 @@ struct WaveformTrimmerView: View {
                 // Bottom border
                 trimBorder(leftX: leftX, rightX: rightX, height: height, top: false)
 
+                // Playhead overlay — sits above waveform, below handles
+                if let playheadTime, duration > 0 {
+                    let playheadX = CGFloat(max(0, min(playheadTime / duration, 1))) * width
+                    ZStack(alignment: .top) {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.88))
+                            .frame(width: 2, height: height)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 7, height: 7)
+                            .offset(y: 2)
+                    }
+                    .shadow(color: .white.opacity(0.45), radius: 3)
+                    .position(x: playheadX, y: height / 2)
+                    .allowsHitTesting(false)
+                }
+
                 // Left handle (Start)
-                handle(isStart: true, height: height)
+                handle(isLeft: true, height: height)
                     .position(x: leftX, y: height / 2)
                     .gesture(
                         DragGesture(coordinateSpace: .named("trimmer"))
@@ -61,7 +78,7 @@ struct WaveformTrimmerView: View {
                     )
 
                 // Right handle (End)
-                handle(isStart: false, height: height)
+                handle(isLeft: false, height: height)
                     .position(x: rightX, y: height / 2)
                     .gesture(
                         DragGesture(coordinateSpace: .named("trimmer"))
@@ -71,23 +88,6 @@ struct WaveformTrimmerView: View {
                                 endTime = min(duration, max(newTime, minTime))
                             }
                     )
-
-                // Playhead — sits above waveform, below handles
-                if let playheadTime, duration > 0 {
-                    let playheadX = CGFloat(max(0, min(playheadTime / duration, 1))) * width
-                    ZStack(alignment: .top) {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.85))
-                            .frame(width: 2, height: height)
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 7, height: 7)
-                            .offset(y: 2)
-                    }
-                    .shadow(color: .white.opacity(0.5), radius: 4)
-                    .position(x: playheadX, y: height / 2)
-                    .allowsHitTesting(false)
-                }
             }
             .coordinateSpace(name: "trimmer")
             .onTapGesture(count: 1, coordinateSpace: .named("trimmer")) { location in
@@ -158,10 +158,9 @@ struct WaveformTrimmerView: View {
 
     // MARK: - Handles
 
-    private func handle(isStart: Bool, height: CGFloat) -> some View {
-        let color = isStart ? startColor : endColor
-        let letter = isStart ? "S" : "E"
-
+    private func handle(isLeft: Bool, height: CGFloat) -> some View {
+        let color = isLeft ? startColor : endColor
+        
         return ZStack {
             // Wider invisible hit target
             Color.clear
@@ -170,10 +169,10 @@ struct WaveformTrimmerView: View {
 
             // Glow effect
             UnevenRoundedRectangle(
-                topLeadingRadius: isStart ? 6 : 0,
-                bottomLeadingRadius: isStart ? 6 : 0,
-                bottomTrailingRadius: isStart ? 0 : 6,
-                topTrailingRadius: isStart ? 0 : 6
+                topLeadingRadius: isLeft ? 6 : 0,
+                bottomLeadingRadius: isLeft ? 6 : 0,
+                bottomTrailingRadius: isLeft ? 0 : 6,
+                topTrailingRadius: isLeft ? 0 : 6
             )
             .fill(color.opacity(0.3))
             .frame(width: handleWidth + 6, height: height)
@@ -181,17 +180,17 @@ struct WaveformTrimmerView: View {
 
             // Visible handle
             UnevenRoundedRectangle(
-                topLeadingRadius: isStart ? 6 : 0,
-                bottomLeadingRadius: isStart ? 6 : 0,
-                bottomTrailingRadius: isStart ? 0 : 6,
-                topTrailingRadius: isStart ? 0 : 6
+                topLeadingRadius: isLeft ? 6 : 0,
+                bottomLeadingRadius: isLeft ? 6 : 0,
+                bottomTrailingRadius: isLeft ? 0 : 6,
+                topTrailingRadius: isLeft ? 0 : 6
             )
             .fill(color)
             .frame(width: handleWidth, height: height)
             .overlay {
-                Text(letter)
-                    .font(.system(size: 11, weight: .black, design: .monospaced))
-                    .foregroundStyle(.black.opacity(0.6))
+                Image(systemName: isLeft ? "chevron.compact.left" : "chevron.compact.right")
+                    .font(.system(size: 14, weight: .heavy))
+                    .foregroundStyle(.black.opacity(0.5))
             }
         }
     }

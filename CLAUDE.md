@@ -31,6 +31,12 @@ xcodebuild build \
   CODE_SIGNING_ALLOWED=NO
 ```
 
+Equivalent explicit helper for background dogfooding on this Mac:
+```bash
+xcodebuild -project CheerPracticePlayer.xcodeproj -scheme CheerPracticePlayer -destination 'platform=macOS,variant=Mac Catalyst,name=My Mac' -derivedDataPath build/DerivedData -toolchain XcodeDefault CODE_SIGNING_ALLOWED=NO build
+open -n build/DerivedData/Build/Products/Debug-maccatalyst/CheerPracticePlayer.app
+```
+
 Run unit tests on Mac Catalyst without requiring a local signing certificate:
 ```bash
 xcodebuild test \
@@ -49,7 +55,7 @@ xcodebuild build \
   -destination 'platform=iOS,name=<REAL_DEVICE_NAME>'
 ```
 
-Current real-device destinations seen on this machine include `ianPad` and `this is ian.  `, but re-run `-showdestinations` before hard-coding a device name.
+Only use an iOS Simulator destination when the task explicitly asks for simulator verification. Run tests against an installed destination from `xcodebuild -showdestinations`.
 
 ## Architecture
 
@@ -99,7 +105,7 @@ For behavior changes, add or update unit tests first, then run the Mac Catalyst 
 | Area | Files | Why fragile | Rule |
 |---|---|---|---|
 | Audio segment playback | `Shared/AudioPlaybackEngine.swift`, `Shared/LiveSessionController.swift` | Practice flow depends on exact seek/start/stop timing and correct block boundaries. | Keep playback state changes centralized in `LiveSessionController`; preserve tests around seek times and play counts. |
-| Global timeline / seek | `Features/Builder/Views/PracticeBuilderView.swift`, `Features/RunMode/Views/LiveRunView.swift`, `Shared/LiveSessionController.swift`, `Shared/AudioPlaybackEngine.swift` | Builder and Live share the same seek path; a change in one can silently break the other. | Test seek + scrub from both Build and Live after any change here; verify tab-switch pause still fires. |
+| Global timeline / seek | `Features/Builder/Views/PracticeBuilderView.swift`, `Features/RunMode/Views/LiveRunView.swift`, `Shared/LiveSessionController.swift`, `Shared/AudioPlaybackEngine.swift` | Builder and Live share the same x-axis path; a change in one can silently break the other. | Test seek + scrub from both Build and Live after any change here; verify tab-switch pause still fires. |
 | Runner state machine | `Models/SessionRunnerState.swift`, `Tests/CheerPracticePlayerTests.swift` | Off-by-one rep/block transitions can silently break live practice sessions. | Treat runner changes as pure logic changes with unit tests first. |
 | Trim/playhead UI | `Features/Builder/Views/WaveformTrimmerView.swift`, `Features/Builder/Views/PracticeBuilderView.swift` | Recent work iterated on trimming and playhead behavior; small gesture changes can make section editing unusable. | Preserve visible handles, tap-to-seek, playhead rendering, and minimum selection constraints. |
 | Mix persistence/import | `Shared/MixLibraryStore.swift`, `Shared/MixImportService.swift`, `Models/SavedMix.swift` | Coaches need saved reusable mixes/templates; path/bookmark mistakes can strand imported audio. | Avoid destructive migrations; test save/load paths when touching persistence. |
