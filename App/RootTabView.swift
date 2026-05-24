@@ -5,15 +5,23 @@ struct RootTabView: View {
     let controller: LiveSessionController
     let mixLibrary: MixLibraryStore
     let audioEngine: AudioPlaybackEngine
+    @Binding var requestImportAfterOnboarding: Bool
 
     @State private var selectedTab: Int
     @State private var requestImportFromBuild = false
 
-    init(session: Binding<PrototypeSession>, controller: LiveSessionController, mixLibrary: MixLibraryStore, audioEngine: AudioPlaybackEngine) {
+    init(
+        session: Binding<PrototypeSession>,
+        controller: LiveSessionController,
+        mixLibrary: MixLibraryStore,
+        audioEngine: AudioPlaybackEngine,
+        requestImportAfterOnboarding: Binding<Bool>
+    ) {
         self._session = session
         self.controller = controller
         self.mixLibrary = mixLibrary
         self.audioEngine = audioEngine
+        self._requestImportAfterOnboarding = requestImportAfterOnboarding
         // Land on Library when there are saved mixes; otherwise jump to Build so first-import has no extra tap.
         let hasMixes = !mixLibrary.mixes.isEmpty
         self._selectedTab = State(initialValue: hasMixes ? 0 : 1)
@@ -63,6 +71,13 @@ struct RootTabView: View {
         }
         .onChange(of: session) { _, newValue in
             controller.syncSession(newValue)
+        }
+        .onChange(of: requestImportAfterOnboarding) { _, shouldImport in
+            if shouldImport {
+                requestImportAfterOnboarding = false
+                requestImportFromBuild = true
+                selectedTab = 1
+            }
         }
     }
 
