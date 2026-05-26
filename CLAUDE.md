@@ -59,7 +59,7 @@ Only use an iOS Simulator destination when the task explicitly asks for simulato
 
 ## Architecture
 
-CheerPracticePlayer is an iPhone-first SwiftUI app for programmable practice playback. Deployment target is iOS 18.0, Swift version is 5.0. The app target has Mac Catalyst enabled (`SUPPORTS_MACCATALYST: YES`) and ships universal (`TARGETED_DEVICE_FAMILY: "1,2"`). Marketing version 1.0, current build 2 is prepped for App Store submission.
+CheerPracticePlayer is an iPhone-first SwiftUI app for programmable practice playback. Deployment target is iOS 18.0, Swift version is 5.0. The app target has Mac Catalyst enabled (`SUPPORTS_MACCATALYST: YES`) and ships universal (`TARGETED_DEVICE_FAMILY: "1,2"`). Marketing version 1.0, current build 6 is prepped for App Store submission. (`CURRENT_PROJECT_VERSION` in `project.yml` is the source of truth — keep these prose references in sync when bumping.)
 
 ### Domain Model Flow
 
@@ -90,6 +90,16 @@ The current `PracticeBuilderView` combines (1) and (2) on one tab; the target is
 
 State flows down from `CheerPracticePlayerApp` via `@State session` and `LiveSessionController`. Builder mutates session through bindings; changes sync back to the controller with `.onChange`. Switching tabs auto-pauses `audioEngine` so a Build-tab preview never bleeds into Live.
 
+### First-Launch Onboarding
+
+`CheerPracticePlayerApp` overlays `OnboardingView` (a paged `TabView` of `OnboardingStep`s) above `RootTabView` only when `@AppStorage("hasCompletedOnboarding")` is false **and** the mix library is empty — an existing library auto-marks onboarding complete. "Start" sets `requestImportAfterOnboarding = true`, which `RootTabView` consumes to jump straight into the Build-tab import flow; "Skip" just dismisses. Don't gate onboarding on `hasCompletedOnboarding` alone — the empty-library check prevents re-showing it to returning users who reset the flag.
+
+### Design System & Audio Cues
+
+- UI styling goes through `Shared/DesignTokens.swift` (`PPColors`, `PPFonts`, etc.) and `Shared/Formatters.swift` — reuse these tokens instead of hardcoding colors/fonts/time strings.
+- `Shared/SoundEffectsPlayer.swift` is a `@MainActor` singleton that synthesizes its countdown beep in-code (880Hz chime, no audio asset) — there's no bundled sound file to find.
+- `Shared/WaveformExtractor.swift` produces the waveform samples that `WaveformTrimmerView` renders; it's part of the protected waveform aesthetic (see Known Fragile Areas / waveform memory) — don't alter extraction or rendering without explicit sign-off.
+
 ### Timeline Strip / Seek
 
 Builder and Live both render a global timeline strip and accept user seek. Both paths funnel through `LiveSessionController` and `AudioPlaybackEngine.seek`, so seek logic, segment clamping, and auto-stop scheduling are shared. Treat seek changes in either view as touching the same code path.
@@ -113,7 +123,7 @@ For behavior changes, add or update unit tests first, then run the Mac Catalyst 
 
 ## App Store / Release
 
-- v1.0 (build 2) queued for App Store submission (summer 2026 ship queue, priority 1).
+- v1.0 (build 6) queued for App Store submission (summer 2026 ship queue, priority 1).
 - Release artifacts in repo: `APP_STORE_LISTING.md`, `PRIVACY_POLICY.md`, `fastlane/` (Appfile, Fastfile, AuthKey.json for ASC API), `scripts/ship-testflight.sh`.
 - `.appstore/capture.md` is enrolled in the global App Store screenshot LaunchAgent (`com.ianrichardson.appstore-auto`, runs 5:32am Mon–Fri). Output goes to `AppStoreScreenshots/auto/<date>/`. Never auto-uploaded; Ian reviews.
 - When bumping build/version, edit `project.yml` (`CURRENT_PROJECT_VERSION`, `MARKETING_VERSION`) then `xcodegen generate` — never hand-edit the `.xcodeproj`.
