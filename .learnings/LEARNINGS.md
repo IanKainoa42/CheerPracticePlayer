@@ -88,3 +88,17 @@
 - **Category:** correction
 - **What happened:** `fastlane lanes` crashed at parse time with `OpenSSL::PKey::EC#initialize: invalid curve name`. Prior diagnosis (2026-05-25) blamed the ASC API key and prescribed regenerating it. The key is actually a valid P-256 key. Real cause: the Fastfile header used `key_filepath: "fastlane/AuthKey.json"`, but AuthKey.json is a JSON wrapper `{key_id,issuer_id,key:<PEM>}`, not a raw .p8 — fastlane fed the whole JSON blob to `OpenSSL::PKey::EC.new` → "invalid curve name".
 - **Rule:** When AuthKey.json is a JSON wrapper, parse it (`JSON.parse`) and pass `key_content:` (the extracted PEM). Never point `key_filepath:` at the JSON wrapper. Verify a fix with `fastlane lanes`, not openssl (openssl accepts the extracted key regardless).
+
+## 2026-05-26 — /ship CheerPracticePlayer: fastlane param + first-submission gotchas
+
+- **Category:** correction / knowledge_gap
+- **What happened:** /ship pipeline for v1.0 (build 8) hit three sequential failures:
+  1. `ship_upload` failed at `sync_code_signing` → "No value found for 'git_url'". This repo uses **automatic signing** (CODE_SIGN_STYLE: Automatic), not fastlane match. The working `:beta` lane never used match.
+  2. `ship_upload`'s `upload_to_app_store` ran precheck and died on "Precheck cannot check In-app purchases with the App Store Connect API Key" — precheck has no business in an upload-only lane.
+  3. `ship_submit` failed: `upload_to_app_store` rejected option `automatic_release_after_approval` (not a valid deliver option). Then "appStoreVersions ... is not in valid state. This resource cannot be reviewed" — fastlane created an EMPTY draft review submission because the version had a missing required field.
+- **Root cause of "not in valid state":** First-ever submission was missing **Content Rights Information** in App Store Connect → App Information. ASC "Add for Review" surfaced the exact error; the fastlane API error was generic.
+- **Rules going forward:**
+  - In `ship_upload`/`ship_submit` lanes for repos with automatic signing: do NOT call `sync_code_signing`; just `build_app(export_method: "app-store", xcargs: "-allowProvisioningUpdates")` like the `:beta` lane.
+  - `upload_to_app_store` auto-release option is **`automatic_release: true`**, NOT `automatic_release_after_approval`.
+  - Add `run_precheck_before_submit: false` to upload-only lanes.
+  - For a generic "appStoreVersions not in valid state" on first submission, open ASC and click "Add for Review" to get the specific blocking list (Content Rights, age rating, pricing, etc.). The ASC API privacy/validation paths return PATH_ERROR with an API key — the web UI is authoritative.

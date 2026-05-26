@@ -69,14 +69,20 @@ platform :ios do
     )
     sh("cd .. && xcodegen generate")
     ENV["PATH"] = "/usr/bin:#{ENV['PATH']}"
-    sync_code_signing(type: "appstore")
-    build_app(scheme: ENV["SHIP_SCHEME"], export_method: "app-store",
-              xcargs: "-allowProvisioningUpdates")
+    # Automatic signing (matches the working :beta lane) — repo has no match/git_url repo.
+    build_app(
+      scheme: ENV["SHIP_SCHEME"],
+      export_method: "app-store",
+      clean: true,
+      destination: "generic/platform=iOS",
+      xcargs: "-allowProvisioningUpdates"
+    )
     upload_to_app_store(
       api_key: key,
       force: true,                 # skip interactive HTML preview
       skip_metadata: true,         # listing is managed in ASC web — don't clobber it
       skip_screenshots: true,      # screenshots pushed separately via ship_screenshots
+      run_precheck_before_submit: false, # upload-only lane; precheck belongs in ship_submit
       submit_for_review: false     # upload only — gate happens before submit
     )
   end
@@ -117,7 +123,7 @@ platform :ios do
       run_precheck_before_submit: true,
       precheck_include_in_app_purchases: false,  # no IAP; precheck can't check IAP w/ API key anyway
       submit_for_review: true,
-      automatic_release_after_approval: true,
+      automatic_release: true,     # deliver's option name; auto-releases once Apple approves
       submission_information: { export_compliance_uses_encryption: false }
     )
   end
