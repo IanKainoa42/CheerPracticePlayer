@@ -1,5 +1,11 @@
 # Learnings
 
+## 2026-05-26 — Use two-dot diff to judge whether a stale branch has anything main lacks
+
+- **Category:** best_practice
+- **What happened:** Asked to "clean up branches and merge." `git diff main...branch` (three-dot) showed a stale branch "adding" `.gitignore` rules, so I nearly cherry-picked them. But three-dot diffs against the merge-base, so it credits the branch with changes main may have independently made since. `git diff main..branch` (two-dot) revealed the `.gitignore` was byte-identical and the branch was actually *behind* main (would have reverted onboarding, the waveform trimmer, tests). Nothing to merge — just delete.
+- **Rule:** Before salvaging/merging from an old branch, run two-dot `git diff main..branch` (and `--stat`) to see the real delta vs current main — not three-dot. Deletions in `main..branch --stat` mean main is ahead. A stale branch that "adds" things in three-dot may already be fully superseded.
+
 ## 2026-05-19 — Empty-state UI code never fires while sample session is seeded at boot
 
 - **Category:** correction
@@ -76,3 +82,9 @@
 - **Category:** correction
 - **What happened:** PracticeBuilderView's `waveform` view had an if/else: when `waveformSamples.isEmpty`, it rendered a pair of legacy "Start"/"End" sliders. When samples arrived, it swapped to WaveformTrimmerView. The user saw the old sliders flash for ~half a second every time a section card mounted before audio decoded, then snap to the waveform. This is dead/deprecated UI — the trimmer is the only intended editor.
 - **Rule:** When replacing one UI control with another, remove the old branch entirely. WaveformTrimmerView already renders fine with empty `samples` (background + handles + dim overlay, no bars — Canvas returns early when count == 0). Always show the trimmer; never fall back to the legacy sliders. Also deleted the unused `timeSlider(label:value:onChange:)` helper. Related memory: [[feedback_waveform_ui.md]] — waveform is sacred, but legacy non-waveform fallbacks are not the waveform and should be pruned.
+
+## 2026-05-26 — "invalid curve name" was a Fastfile bug, not a bad key
+
+- **Category:** correction
+- **What happened:** `fastlane lanes` crashed at parse time with `OpenSSL::PKey::EC#initialize: invalid curve name`. Prior diagnosis (2026-05-25) blamed the ASC API key and prescribed regenerating it. The key is actually a valid P-256 key. Real cause: the Fastfile header used `key_filepath: "fastlane/AuthKey.json"`, but AuthKey.json is a JSON wrapper `{key_id,issuer_id,key:<PEM>}`, not a raw .p8 — fastlane fed the whole JSON blob to `OpenSSL::PKey::EC.new` → "invalid curve name".
+- **Rule:** When AuthKey.json is a JSON wrapper, parse it (`JSON.parse`) and pass `key_content:` (the extracted PEM). Never point `key_filepath:` at the JSON wrapper. Verify a fix with `fastlane lanes`, not openssl (openssl accepts the extracted key regardless).

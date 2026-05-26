@@ -3,14 +3,17 @@
 Consumed by `~/.config/appstore-auto/run.sh` (launchd `com.ianrichardson.appstore-auto`, Mon-Fri 5:32am PT).
 
 ## Goal
-Produce iPhone 6.9" portrait screenshots for the App Store 1.0 listing.
+Produce iPhone 6.9" AND iPad 13" portrait screenshots for the App Store 1.0 listing.
 
 ## Required dimensions
 | Device | Portrait |
 |---|---|
 | iPhone 6.9" (iPhone 16 Pro Max / 17 Pro Max) | 1320 × 2868 |
+| iPad 13" (iPad Pro 13-inch M4/M5) | 2064 × 2752 |
 
-App is iPhone-portrait-only — no iPad, no Catalyst, no landscape.
+App is **universal** (`TARGETED_DEVICE_FAMILY: "1,2"`) — App Store requires BOTH an
+iPhone set and an iPad set. Portrait only, no Catalyst, no landscape. 2064×2752 maps
+to deliver's `APP_IPAD_PRO_3GEN_129` slot (it also accepts 2048×2732).
 
 ## Output layout
 Under `AppStoreScreenshots/auto/<YYYY-MM-DD>/`:
@@ -23,8 +26,16 @@ auto/
       screenshot_03_live_run.png
       screenshot_04_block_detail.png
       screenshot_05_mix_library.png
+    ipad13/
+      screenshot_01_library.png   # Library tab — "No Saved Mixes" empty state
+      screenshot_02_build.png     # Build tab — IMPORT MIX call-to-action
+      screenshot_03_live.png      # Live tab — "No Blocks" empty state
     NOTES.md
 ```
+
+iPad capture: boot `iPad Pro 13-inch (M5)`, install the same build, SKIP onboarding,
+then capture the Library / Build / Live segments via `xcrun simctl io <udid> screenshot`.
+Same dataless empty states as iPhone until a demo mix is bundled (1.1).
 
 Do not commit. Do not upload to ASC. Ian reviews and uploads manually.
 

@@ -1,9 +1,15 @@
 default_platform(:ios)
 
+require "json"
+
+# AuthKey.json is a JSON wrapper {key_id, issuer_id, key:<PEM>}, NOT a raw .p8.
+# key_filepath would feed the whole JSON blob to OpenSSL::PKey::EC.new and crash
+# with "invalid curve name" at parse time — parse it and pass key_content instead.
+_auth = JSON.parse(File.read(File.join(__dir__, "AuthKey.json")))
 api_key = app_store_connect_api_key(
-  key_id: "6H24WZ2RQ5",
-  issuer_id: "7642a25e-aca7-402d-8b7d-de18dfef1756",
-  key_filepath: "fastlane/AuthKey.json",
+  key_id: _auth["key_id"],
+  issuer_id: _auth["issuer_id"],
+  key_content: _auth["key"],
   duration: 1200,
   in_house: false
 )
@@ -46,5 +52,90 @@ platform :ios do
       skip_waiting_for_build_processing: true,
       notify_external_testers: false
     )
+  end
+
+  # --- /ship lanes (scaffolded by Phase 0b) ---
+  # Each lane is self-contained: it loads the ASC API key from fastlane/AuthKey.json
+  # itself (key_content), so it works independently of the header api_key local.
+  # Env: SHIP_SCHEME (build scheme), SHIP_BUNDLE_ID (bundle id),
+  #      SHIP_BUILD_NUMBER (build to submit, ship_submit only).
+
+  desc "Build + upload binary to App Store Connect. Does NOT submit."
+  lane :ship_upload do
+    cfg = JSON.parse(File.read(File.join(__dir__, "AuthKey.json")))
+    key = app_store_connect_api_key(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      key_content: cfg["key"], duration: 1200, in_house: false
+    )
+    sh("cd .. && xcodegen generate")
+    ENV["PATH"] = "/usr/bin:#{ENV['PATH']}"
+    sync_code_signing(type: "appstore")
+    build_app(scheme: ENV["SHIP_SCHEME"], export_method: "app-store",
+              xcargs: "-allowProvisioningUpdates")
+    upload_to_app_store(
+      api_key: key,
+      force: true,                 # skip interactive HTML preview
+      skip_metadata: true,         # listing is managed in ASC web — don't clobber it
+      skip_screenshots: true,      # screenshots pushed separately via ship_screenshots
+      submit_for_review: false     # upload only — gate happens before submit
+    )
+  end
+
+  desc "Upload App Store screenshots from fastlane/screenshots only (no binary, no metadata)."
+  lane :ship_screenshots do
+    cfg = JSON.parse(File.read(File.join(__dir__, "AuthKey.json")))
+    key = app_store_connect_api_key(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      key_content: cfg["key"], duration: 1200, in_house: false
+    )
+    upload_to_app_store(
+      api_key: key,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: false,
+      overwrite_screenshots: true,
+      force: true,
+      run_precheck_before_submit: false,  # avoid precheck IAP-with-API-key error on a screenshots-only push
+      submit_for_review: false
+    )
+  end
+
+  desc "Submit an already-uploaded build for review with auto-release after approval."
+  lane :ship_submit do
+    cfg = JSON.parse(File.read(File.join(__dir__, "AuthKey.json")))
+    key = app_store_connect_api_key(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"],
+      key_content: cfg["key"], duration: 1200, in_house: false
+    )
+    upload_to_app_store(
+      api_key: key,
+      build_number: ENV["SHIP_BUILD_NUMBER"],
+      skip_binary_upload: true,    # binary already uploaded by ship_upload
+      skip_screenshots: true,      # listing managed in ASC web / pushed via ship_screenshots
+      skip_metadata: true,         # don't clobber the ASC-managed listing
+      force: true,
+      run_precheck_before_submit: true,
+      precheck_include_in_app_purchases: false,  # no IAP; precheck can't check IAP w/ API key anyway
+      submit_for_review: true,
+      automatic_release_after_approval: true,
+      submission_information: { export_compliance_uses_encryption: false }
+    )
+  end
+
+  desc "Print current/latest App Store build status as JSON (read-only). Used by /ship pre-flight."
+  lane :asc_build_status do
+    require "spaceship"
+    cfg = JSON.parse(File.read(File.join(__dir__, "AuthKey.json")))
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: cfg["key_id"], issuer_id: cfg["issuer_id"], key: cfg["key"]
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["SHIP_BUNDLE_ID"])
+    builds = app.get_builds(limit: 25, sort: "-uploadedDate",
+                            includes: "preReleaseVersion")
+    rows = builds.map do |b|
+      { build: b.version, processingState: b.processing_state,
+        uploaded: b.uploaded_date }
+    end
+    UI.message("ASC_BUILD_STATUS_JSON=" + rows.to_json)
   end
 end
