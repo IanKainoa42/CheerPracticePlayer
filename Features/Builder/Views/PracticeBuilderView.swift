@@ -579,6 +579,8 @@ private struct ProgramSectionCard: View {
     let onPreview: () -> Void
     let onSeek: (TimeInterval) -> Void
 
+    @State private var isRestartHelpPresented = false
+
     private var numberLabel: String {
         String(format: "%02d", index + 1)
     }
@@ -743,19 +745,46 @@ private struct ProgramSectionCard: View {
     }
 
     private var restartPicker: some View {
-        Picker(
-            "Restart",
-            selection: Binding(
-                get: { block.restartMode },
-                set: { newVal in
-                    var u = block
-                    u.restartMode = newVal
-                    onBlockChange(u)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Label("Restart Mode", systemImage: "repeat")
+                    .font(PPFonts.caption(11))
+                    .tracking(1.2)
+                    .foregroundStyle(PPColors.textTertiary)
+
+                Spacer()
+
+                Button {
+                    isRestartHelpPresented = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(PPColors.accentYellow)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Circle())
                 }
-            )
-        ) {
-            ForEach(PracticeBlock.RestartMode.allCases, id: \.self) { mode in
-                Text(mode.rawValue.capitalized).tag(mode)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Restart mode help")
+                .popover(isPresented: $isRestartHelpPresented) {
+                    RestartModeHelpView()
+                        .presentationCompactAdaptation(.popover)
+                }
+            }
+
+            Picker(
+                "Restart Mode",
+                selection: Binding(
+                    get: { block.restartMode },
+                    set: { newVal in
+                        var u = block
+                        u.restartMode = newVal
+                        onBlockChange(u)
+                    }
+                )
+            ) {
+                ForEach(PracticeBlock.RestartMode.allCases, id: \.self) { mode in
+                    Text(mode.label).tag(mode)
+                }
             }
         }
         .pickerStyle(.segmented)
@@ -813,6 +842,40 @@ private struct ProgramSectionCard: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
         .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.04)))
+    }
+}
+
+private struct RestartModeHelpView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Restart Mode")
+                .font(PPFonts.headline(16))
+                .foregroundStyle(PPColors.textPrimary)
+
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(PracticeBlock.RestartMode.allCases, id: \.self) { mode in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: mode.iconName)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(PPColors.accentYellow)
+                            .frame(width: 22)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(mode.label)
+                                .font(PPFonts.headline(14))
+                                .foregroundStyle(PPColors.textPrimary)
+                            Text(mode.helpText)
+                                .font(PPFonts.body(13))
+                                .foregroundStyle(PPColors.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(width: 310)
+        .background(PPColors.card)
     }
 }
 

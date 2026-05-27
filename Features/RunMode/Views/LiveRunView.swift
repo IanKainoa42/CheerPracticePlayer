@@ -188,8 +188,7 @@ struct LiveRunView: View {
                         Label("\(block.restSeconds)s", systemImage: "timer")
                             .font(PPFonts.mono(12))
                             .foregroundStyle(PPColors.accentOrange)
-                        Label(block.restartMode == .automatic ? "Auto" : "Manual",
-                              systemImage: block.restartMode == .automatic ? "repeat" : "hand.tap")
+                        Label(block.restartMode.label, systemImage: block.restartMode.iconName)
                             .font(PPFonts.mono(11))
                             .foregroundStyle(PPColors.textTertiary)
                     }
@@ -322,6 +321,7 @@ struct LiveRunView: View {
         case .playing: return PPColors.success
         case .breakCountdown(let s):
             return s <= PracticeBlock.countdownTailSeconds ? PPColors.accentYellow : PPColors.accentOrange
+        case .waitingForManualStart: return PPColors.accentYellow
         case .complete: return PPColors.success
         }
     }
@@ -338,6 +338,8 @@ struct LiveRunView: View {
                 return "Get ready — \(secondsRemaining)"
             }
             return "Rest — \(secondsRemaining)s remaining"
+        case .waitingForManualStart:
+            return "Tap to start next rep"
         case .complete:
             return "Session Complete 🎉"
         }
@@ -349,6 +351,7 @@ struct LiveRunView: View {
         case .playing: return "play.circle.fill"
         case .breakCountdown(let s):
             return s <= PracticeBlock.countdownTailSeconds ? "metronome.fill" : "timer"
+        case .waitingForManualStart: return "hand.tap.fill"
         case .complete: return "checkmark.circle.fill"
         }
     }
@@ -359,6 +362,7 @@ struct LiveRunView: View {
         case .idle: return "Start Playing"
         case .playing: return "Pause"
         case .breakCountdown: return "Skip Rest"
+        case .waitingForManualStart: return "Start Next Rep"
         case .complete: return "Restart Session"
         }
     }
@@ -369,6 +373,7 @@ struct LiveRunView: View {
         case .idle: return "play.fill"
         case .playing: return "pause.fill"
         case .breakCountdown: return "forward.fill"
+        case .waitingForManualStart: return "hand.tap.fill"
         case .complete: return "arrow.counterclockwise"
         }
     }
@@ -380,6 +385,7 @@ struct LiveRunView: View {
         case .playing: return PPColors.card
         case .breakCountdown(let s):
             return s <= PracticeBlock.countdownTailSeconds ? PPColors.accentYellow : PPColors.accentOrange
+        case .waitingForManualStart: return PPColors.accentYellow
         case .complete: return PPColors.success
         }
     }
@@ -400,7 +406,7 @@ struct LiveRunView: View {
             return
         }
         switch controller.runner.phase {
-        case .idle:
+        case .idle, .waitingForManualStart:
             controller.playCurrentBlock()
         case .playing:
             controller.pausePlayback()

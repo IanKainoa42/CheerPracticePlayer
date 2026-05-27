@@ -202,11 +202,90 @@ final class CheerPracticePlayerTests: XCTestCase {
             XCTAssertEqual(runner.currentRep, 1) // Rep must stay 1 during countdown
         }
         
-        // Final tick should return false and transition to playing, and currentRep remains 1
+        // Final tick should return false and, because the next sample block is manual,
+        // wait for the coach to tap before playing rep 1.
         let keepTicking = runner.tickCountdown()
         XCTAssertFalse(keepTicking)
         XCTAssertEqual(runner.currentBlockIndex, 1)
         XCTAssertEqual(runner.currentRep, 1) // Crucial! Still 1! No skipped first rep!
+        XCTAssertEqual(runner.phase, .waitingForManualStart)
+
+        runner.start()
+        XCTAssertEqual(runner.currentRep, 1)
+        XCTAssertEqual(runner.phase, .playing)
+    }
+
+    func testRunnerManualRestartMode_WaitsAfterRestForNextRep() {
+        let section = PracticeSection(
+            id: UUID(),
+            name: "Manual Drill",
+            type: .dance,
+            startTime: 10,
+            endTime: 20
+        )
+        let block = PracticeBlock(
+            id: UUID(),
+            title: "Manual Drill",
+            section: section,
+            reps: 2,
+            restSeconds: 3,
+            restartMode: .manual
+        )
+        var runner = SessionRunnerState(
+            template: PrototypeSession(
+                id: UUID(),
+                teamName: "Test",
+                mix: nil,
+                sections: [section],
+                blocks: [block]
+            )
+        )
+
+        runner.start()
+        runner.finishRep()
+
+        XCTAssertEqual(runner.currentRep, 2)
+        XCTAssertEqual(runner.phase, .breakCountdown(secondsRemaining: 3))
+        XCTAssertTrue(runner.tickCountdown())
+        XCTAssertTrue(runner.tickCountdown())
+        XCTAssertFalse(runner.tickCountdown())
+        XCTAssertEqual(runner.phase, .waitingForManualStart)
+    }
+
+    func testRunnerAutomaticRestartMode_PlaysAfterRestForNextRep() {
+        let section = PracticeSection(
+            id: UUID(),
+            name: "Auto Drill",
+            type: .dance,
+            startTime: 10,
+            endTime: 20
+        )
+        let block = PracticeBlock(
+            id: UUID(),
+            title: "Auto Drill",
+            section: section,
+            reps: 2,
+            restSeconds: 3,
+            restartMode: .automatic
+        )
+        var runner = SessionRunnerState(
+            template: PrototypeSession(
+                id: UUID(),
+                teamName: "Test",
+                mix: nil,
+                sections: [section],
+                blocks: [block]
+            )
+        )
+
+        runner.start()
+        runner.finishRep()
+
+        XCTAssertEqual(runner.currentRep, 2)
+        XCTAssertEqual(runner.phase, .breakCountdown(secondsRemaining: 3))
+        XCTAssertTrue(runner.tickCountdown())
+        XCTAssertTrue(runner.tickCountdown())
+        XCTAssertFalse(runner.tickCountdown())
         XCTAssertEqual(runner.phase, .playing)
     }
 

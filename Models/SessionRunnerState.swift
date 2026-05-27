@@ -4,6 +4,7 @@ enum LivePlaybackPhase: Equatable {
     case idle
     case playing
     case breakCountdown(secondsRemaining: Int)
+    case waitingForManualStart
     case complete
 
     /// True when this break-countdown phase is in the final "get ready" tail.
@@ -120,7 +121,7 @@ struct SessionRunnerState {
             if block.restSeconds > 0 {
                 phase = .breakCountdown(secondsRemaining: block.restSeconds)
             } else {
-                phase = .playing
+                phase = postRestPhase(for: block)
             }
         } else {
             // Last rep of this block — advance to next block
@@ -128,11 +129,12 @@ struct SessionRunnerState {
             if template.blocks.indices.contains(nextIndex) {
                 currentBlockIndex = nextIndex
                 currentRep = 1
-                let nextRest = template.blocks[nextIndex].restSeconds
+                let nextBlock = template.blocks[nextIndex]
+                let nextRest = nextBlock.restSeconds
                 if nextRest > 0 {
                     phase = .breakCountdown(secondsRemaining: nextRest)
                 } else {
-                    phase = .playing
+                    phase = postRestPhase(for: nextBlock)
                 }
             } else {
                 phase = .complete
@@ -147,8 +149,12 @@ struct SessionRunnerState {
                 phase = .breakCountdown(secondsRemaining: remaining - 1)
                 return true
             } else {
-                // Break finished — go play (currentRep is already incremented in finishRep)
-                phase = .playing
+                // Break finished — currentRep was already advanced in finishRep.
+                if let block = currentBlock {
+                    phase = postRestPhase(for: block)
+                } else {
+                    phase = .complete
+                }
                 return false
             }
 
@@ -209,5 +215,9 @@ struct SessionRunnerState {
         currentBlockIndex = 0
         currentRep = 0
         phase = .idle
+    }
+
+    private func postRestPhase(for block: PracticeBlock) -> LivePlaybackPhase {
+        block.restartMode == .automatic ? .playing : .waitingForManualStart
     }
 }

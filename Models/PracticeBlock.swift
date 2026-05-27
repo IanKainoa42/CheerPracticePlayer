@@ -4,6 +4,29 @@ struct PracticeBlock: Identifiable, Hashable {
     enum RestartMode: String, CaseIterable, Codable {
         case automatic
         case manual
+
+        var label: String {
+            switch self {
+            case .automatic: return "Auto"
+            case .manual: return "Manual"
+            }
+        }
+
+        var iconName: String {
+            switch self {
+            case .automatic: return "repeat"
+            case .manual: return "hand.tap"
+            }
+        }
+
+        var helpText: String {
+            switch self {
+            case .automatic:
+                return "Starts the next rep automatically after the rest timer."
+            case .manual:
+                return "Runs the rest timer, then waits for you to tap the Live cue card before the next rep."
+            }
+        }
     }
 
     let id: UUID

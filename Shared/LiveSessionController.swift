@@ -102,7 +102,7 @@ final class LiveSessionController {
             startSessionTimer()
             keepScreenAwake(true)
             return
-        case .idle, .complete:
+        case .idle, .waitingForManualStart, .complete:
             // Nothing meaningful to resume — clear the flag so the next tap drives
             // a fresh play/restart from the card.
             isPaused = false
@@ -180,7 +180,7 @@ final class LiveSessionController {
         // session in flight. Otherwise tab-switches would set isPaused=true on
         // an idle controller, eating the first tap on the Live cue card.
         switch runner.phase {
-        case .idle, .complete:
+        case .idle, .waitingForManualStart, .complete:
             return
         case .playing, .breakCountdown:
             break
@@ -277,6 +277,11 @@ final class LiveSessionController {
             // No rest needed — play next rep immediately
             playCurrentSection()
 
+        case .waitingForManualStart:
+            audioPlayer.pause()
+            stopPlayheadTimer()
+            audioStatus = phaseDescription
+
         case .complete:
             audioPlayer.pause()
             stopPlayheadTimer()
@@ -328,10 +333,17 @@ final class LiveSessionController {
 
         if !shouldContinue {
             stopCountdown()
-            // After countdown finishes, the runner transitions to .playing
-            if runner.phase == .playing {
+            audioStatus = phaseDescription
+
+            switch runner.phase {
+            case .playing:
                 guard prepareCurrentBlockForPlayback() else { return }
                 playCurrentSection()
+            case .waitingForManualStart:
+                audioPlayer.pause()
+                stopPlayheadTimer()
+            case .idle, .breakCountdown, .complete:
+                break
             }
         }
     }
@@ -482,6 +494,8 @@ final class LiveSessionController {
                 return "Get ready: \(secondsRemaining)"
             }
             return "Rest: \(secondsRemaining)s"
+        case .waitingForManualStart:
+            return "Ready for manual start"
         case .complete:
             return "Session complete"
         }
