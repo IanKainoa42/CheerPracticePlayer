@@ -46,7 +46,10 @@ struct LiveRunView: View {
 
     private func activeSessionView(block: PracticeBlock) -> some View {
         VStack(spacing: 16) {
-            // Countdown ring (only during break)
+            // Always-present countdown ring — its footprint never changes, so the
+            // cue card, block queue, and timeline below never reflow when a break
+            // starts/ends. Counts down rest during a break, and the section's
+            // remaining time while playing.
             countdownDisplay
                 .padding(.top, 4)
 
@@ -78,21 +81,54 @@ struct LiveRunView: View {
 
     // MARK: - Countdown Display
 
-    @ViewBuilder
+    /// The always-present circular gauge. Its footprint is constant across every
+    /// phase, so showing/hiding a countdown never reflows the views below it.
+    /// - Rest break: counts the rest seconds down (orange → yellow in the tail).
+    /// - Playing: counts the current section's remaining time down (green).
+    /// - Idle / waiting / complete: a dim ring so the slot stays anchored.
     private var countdownDisplay: some View {
-        switch controller.runner.phase {
-        case .breakCountdown(let seconds):
-            let isTail = seconds <= PracticeBlock.countdownTailSeconds
-            CountdownRingView(
-                seconds: seconds,
-                total: controller.runner.currentBlock?.restSeconds ?? 1,
-                label: isTail ? "GET READY" : "REST",
-                color: isTail ? PPColors.accentYellow : PPColors.accentOrange
-            )
-            .transition(.scale.combined(with: .opacity))
+        let info = ringInfo
+        return CountdownRingView(
+            number: info.number,
+            progress: info.progress,
+            label: info.label,
+            color: info.color,
+            isDim: info.isDim
+        )
+    }
 
-        default:
-            EmptyView()
+    /// Per-phase configuration for the countdown ring.
+    private var ringInfo: (number: Int?, progress: Double, label: String, color: Color, isDim: Bool) {
+        let section = controller.runner.currentBlock?.section
+        let sectionDuration = max((section.map { $0.endTime - $0.startTime }) ?? 0, 0.001)
+
+        if controller.isPaused {
+            let remaining = section.map { max(0, $0.endTime - controller.currentPlaybackTime) } ?? 0
+            return (Int(remaining.rounded(.up)), remaining / sectionDuration, "PAUSED", PPColors.accentYellow, true)
+        }
+
+        switch controller.runner.phase {
+        case .playing:
+            let remaining = section.map { max(0, $0.endTime - controller.currentPlaybackTime) } ?? 0
+            return (Int(remaining.rounded(.up)), remaining / sectionDuration, "PLAYING", PPColors.success, false)
+
+        case .breakCountdown(let seconds):
+            let total = max(controller.runner.currentBlock?.restSeconds ?? 1, 1)
+            let isTail = seconds <= PracticeBlock.countdownTailSeconds
+            return (seconds,
+                    Double(seconds) / Double(total),
+                    isTail ? "GET READY" : "REST",
+                    isTail ? PPColors.accentYellow : PPColors.accentOrange,
+                    false)
+
+        case .waitingForManualStart:
+            return (Int(sectionDuration.rounded(.up)), 1, "TAP TO START", PPColors.accentYellow, true)
+
+        case .complete:
+            return (nil, 1, "DONE", PPColors.success, true)
+
+        case .idle:
+            return (Int(sectionDuration.rounded(.up)), 1, "READY", PPColors.textSecondary, true)
         }
     }
 
@@ -484,50 +520,49 @@ private struct BlockQueueRow: View {
 // MARK: - Countdown Ring
 
 private struct CountdownRingView: View {
-    let seconds: Int
-    let total: Int
+    /// Center number, or nil to hide it (e.g. when complete).
+    let number: Int?
+    let progress: Double
     let label: String
     let color: Color
-
-    private var progress: Double {
-        guard total > 0 else { return 0 }
-        return Double(seconds) / Double(total)
-    }
+    /// Dim the whole ring without changing its footprint (idle / waiting / paused / done).
+    let isDim: Bool
 
     var body: some View {
-        VStack(spacing: 12) {
-            ZStack {
-                // Background ring
-                Circle()
-                    .stroke(PPColors.cardBorder, lineWidth: 8)
-                    .frame(width: 120, height: 120)
+        ZStack {
+            // Background ring
+            Circle()
+                .stroke(PPColors.cardBorder, lineWidth: 8)
+                .frame(width: 120, height: 120)
 
-                // Progress ring
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        color,
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
-                    )
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.3), value: progress)
+            // Progress ring
+            Circle()
+                .trim(from: 0, to: max(0, min(progress, 1)))
+                .stroke(
+                    color,
+                    style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                )
+                .frame(width: 120, height: 120)
+                .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 0.3), value: progress)
 
-                // Center text
-                VStack(spacing: 2) {
-                    Text("\(seconds)")
+            // Center text
+            VStack(spacing: 2) {
+                if let number {
+                    Text("\(number)")
                         .font(PPFonts.hero(40))
                         .foregroundStyle(color)
                         .contentTransition(.numericText())
-                        .animation(.spring(response: 0.3), value: seconds)
-
-                    Text(label)
-                        .font(PPFonts.caption(10))
-                        .tracking(1.5)
-                        .foregroundStyle(PPColors.textTertiary)
+                        .animation(.spring(response: 0.3), value: number)
                 }
+
+                Text(label)
+                    .font(PPFonts.caption(10))
+                    .tracking(1.5)
+                    .foregroundStyle(PPColors.textTertiary)
             }
         }
+        .opacity(isDim ? 0.4 : 1)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
     }
