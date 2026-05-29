@@ -84,9 +84,25 @@ struct RootTabView: View {
     private func loadFromLibrary(_ savedMix: SavedMix) {
         session.mix = savedMix.mix
         session.sections = savedMix.sections
-        session.blocks = []
-        for section in savedMix.sections {
-            session.addBlock(for: section)
+
+        if savedMix.blocks.isEmpty {
+            // No persisted block programming — generate defaults from sections (legacy / first-load path).
+            session.blocks = []
+            for section in savedMix.sections {
+                session.addBlock(for: section)
+            }
+        } else {
+            // Restore persisted block programming. Remap each block's embedded
+            // section to the current PracticeSection in savedMix.sections (by id)
+            // so any section edits made later are reflected in the block.
+            session.blocks = savedMix.blocks.compactMap { block in
+                guard let liveSection = savedMix.sections.first(where: { $0.id == block.section.id }) else {
+                    return nil // section was deleted; drop the orphaned block
+                }
+                var restored = block
+                restored.section = liveSection
+                return restored
+            }
         }
     }
 

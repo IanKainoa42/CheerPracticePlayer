@@ -102,3 +102,16 @@
   - `upload_to_app_store` auto-release option is **`automatic_release: true`**, NOT `automatic_release_after_approval`.
   - Add `run_precheck_before_submit: false` to upload-only lanes.
   - For a generic "appStoreVersions not in valid state" on first submission, open ASC and click "Add for Review" to get the specific blocking list (Content Rights, age rating, pricing, etc.). The ASC API privacy/validation paths return PATH_ERROR with an API key — the web UI is authoritative.
+
+## 2026-05-28 — Pip credit silently missed for short sections; pre-roll fade-in offset
+
+- **Category:** correction
+- **What happened:** User reported pips not lighting up reliably and "sessions completing midway." Root cause: `LiveSessionController.creditCurrentRepIfThresholdMet` checked `audioPlayer.currentTime - section.startTime >= 0.75 * sectionDuration`, but `AudioPlaybackEngine.playSegment` starts 0.5s early for a pre-roll fade-in. The controller's `playbackEndTimer` fired at `sectionDuration / rate` real seconds — at which point `audioPlayer.currentTime` was `endTime - 0.5`. For sections < 2s the threshold was never met → no pip credit, ever. Also, re-tapping the active block in the queue could credit a rep mid-play AND let re-runs credit again → `repsAttempted` exceeded `block.reps` ("8/5" pip math).
+- **Rule:** On natural section completion (driven by the controller's own timer), credit the rep unconditionally via a separate `creditCurrentRep()` path that caps at `block.reps`. Only use the threshold-based path (`creditCurrentRepIfThresholdMet`) for manual nav (skip/select). When the engine has a pre-roll/fade offset, expose it as a `static let` so the controller can align its end-of-section timer (`sectionDuration + preRoll`).
+
+## 2026-05-28 — Per-mix block config persistence + slide-to-skip rest
+
+- **Category:** correction + best_practice
+- **What happened:** Reps and rest length silently reset when switching to a different mix and returning, because `SavedMix` only persisted sections and `RootTabView.loadFromLibrary` rebuilt blocks via `addBlock(for: section)` (defaults). Sections persisted (already in `SavedMix.sections`) but block programming did not.
+- **Rule:** When introducing per-mix programmable parameters (reps, rest, restartMode), persist them keyed by mix on the same `SavedMix` record, with a custom `init(from:)` that defaults missing keys to `[]` for backward-compat with older libraries. Sync via `.onChange(of: session.blocks)` in the builder.
+- **Related UX:** "Skip rest" buttons in interval-trainer apps must NEVER skip past the warning beeps — that's the whole point of the warning. Use `skipBreakToCountdownTail()` to jump into the 5-second GET READY tail instead of straight to `.playing`. Replace any tap-to-skip with a slide-to-confirm so a stray tap can't cut rest entirely (`SlideToSkipRest` component, 85% triggerFraction).

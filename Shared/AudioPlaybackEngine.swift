@@ -13,6 +13,11 @@ protocol AudioPlaybackControlling: AnyObject {
 }
 
 final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
+    /// Length of the pre-roll fade-in applied at the start of each segment.
+    /// Exposed so callers (controllers, tests) can align their own end-of-section
+    /// timing with the engine's actual play duration.
+    static let preRollFadeSeconds: TimeInterval = 0.5
+
     private var player: AVAudioPlayer?
     private var loadedURL: URL?
     private var stopTask: DispatchWorkItem?
@@ -73,7 +78,7 @@ final class AudioPlaybackEngine: NSObject, AudioPlaybackControlling {
         }
 
         // Fade in pre-roll: start 0.5s early and fade to full volume at startTime
-        let fadeDuration: TimeInterval = 0.5
+        let fadeDuration: TimeInterval = Self.preRollFadeSeconds
         let playStartTime = max(safeStart - fadeDuration, 0)
         let actualPreRoll = safeStart - playStartTime
 

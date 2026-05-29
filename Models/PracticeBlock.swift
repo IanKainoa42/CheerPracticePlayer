@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeBlock: Identifiable, Hashable {
+struct PracticeBlock: Identifiable, Hashable, Codable {
     enum RestartMode: String, CaseIterable, Codable {
         case automatic
         case manual

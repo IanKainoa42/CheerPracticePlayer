@@ -178,6 +178,16 @@ struct SessionRunnerState {
         phase = .playing
     }
 
+    /// Fast-forward the rest countdown to a specific seconds-remaining value.
+    /// Used by slide-to-skip to jump into the GET READY tail without skipping
+    /// the warning. No-op outside of `.breakCountdown` or if the target value
+    /// would extend (not shorten) the remaining time.
+    mutating func fastForwardBreak(toRemaining seconds: Int) {
+        guard case .breakCountdown(let remaining) = phase else { return }
+        guard seconds < remaining, seconds > 0 else { return }
+        phase = .breakCountdown(secondsRemaining: seconds)
+    }
+
     mutating func restartBlock() {
         currentRep = 1
         phase = .playing

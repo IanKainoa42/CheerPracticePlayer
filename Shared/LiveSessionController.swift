@@ -236,6 +236,33 @@ final class LiveSessionController {
         playCurrentSection()
     }
 
+    /// Fast-forward the rest period to the GET READY warning tail (the last
+    /// `PracticeBlock.countdownTailSeconds` seconds), so the audible/visible
+    /// countdown still fires before the next rep. Used by the slide-to-skip
+    /// gesture during rest — gives the coach a warning instead of an instant cut.
+    func skipBreakToCountdownTail() {
+        guard case .breakCountdown(let remaining) = runner.phase else { return }
+        let tail = PracticeBlock.countdownTailSeconds
+        // Already inside the warning tail — fall back to a full skip so the
+        // user can still get out of the rest with a slide.
+        guard remaining > tail else {
+            skipBreak()
+            return
+        }
+        runner.fastForwardBreak(toRemaining: tail)
+        audioStatus = phaseDescription
+        // Trigger the entry-to-tail double beep that would have fired had we
+        // ticked there naturally; tickCountdown handles single beeps on subsequent ticks.
+        if tail == 10 {
+            SoundEffectsPlayer.shared.playDoubleBeep()
+        } else if tail <= PracticeBlock.countdownTailSeconds {
+            SoundEffectsPlayer.shared.playBeep()
+        }
+        // Countdown timer is already running from the original beginBreak path;
+        // restart it to ensure a clean 1-second cadence from this moment.
+        startCountdown()
+    }
+
     func resetSession() {
         stopCountdown()
         stopSessionTimer()
@@ -256,8 +283,12 @@ final class LiveSessionController {
     /// Called when a section finishes playing. Triggers the rep → rest → next rep flow.
     private func onSectionPlaybackFinished() {
         guard runner.phase == .playing else { return }
-        // Credit the rep only if at least the threshold fraction of the section played.
-        creditCurrentRepIfThresholdMet()
+        // Natural completion — the timer fired because we scheduled it for the
+        // section's end, so credit the rep unconditionally (capped at block.reps).
+        // We do NOT use the audio-currentTime threshold here because the engine
+        // starts 0.5s early for the pre-roll fade-in, so currentTime is short by
+        // half a second at this point — short sections would never credit.
+        creditCurrentRep()
         runner.finishRep()
 
         switch runner.phase {
@@ -295,7 +326,7 @@ final class LiveSessionController {
     }
 
     /// Credit the in-progress rep if the section has played past the completion threshold.
-    /// Called on natural section completion and when the user navigates away mid-rep.
+    /// Called when the user navigates away mid-rep (skip/select block).
     private func creditCurrentRepIfThresholdMet() {
         guard case .playing = runner.phase else { return }
         guard let block = runner.currentBlock else { return }
@@ -303,7 +334,21 @@ final class LiveSessionController {
         guard sectionDuration > 0 else { return }
         let playedAudio = audioPlayer.currentTime - block.section.startTime
         if playedAudio >= Self.repCompletionThreshold * sectionDuration {
-            repsAttempted[block.id, default: 0] += 1
+            incrementAttempted(for: block)
+        }
+    }
+
+    /// Credit the current rep unconditionally (used on natural section completion).
+    /// Capped at `block.reps` so re-runs of an in-progress block can't overflow the pips.
+    private func creditCurrentRep() {
+        guard let block = runner.currentBlock else { return }
+        incrementAttempted(for: block)
+    }
+
+    private func incrementAttempted(for block: PracticeBlock) {
+        let current = repsAttempted[block.id] ?? 0
+        if current < block.reps {
+            repsAttempted[block.id] = current + 1
         }
     }
 
@@ -411,8 +456,12 @@ final class LiveSessionController {
         audioStatus = "Playing \(block.section.name) — Rep \(runner.currentRep)/\(block.reps)"
         startPlayheadTimer()
 
-        // Schedule auto-advance when the section finishes playing
-        let realDelay = sectionDuration / Double(max(playbackRate, 0.01))
+        // Schedule auto-advance when the section finishes playing. The engine
+        // starts up to 0.5s early for the pre-roll fade-in, so match its actual
+        // run time — otherwise the rest countdown kicks in while audio is still
+        // playing the final half-second.
+        let preRoll = min(block.section.startTime, AudioPlaybackEngine.preRollFadeSeconds)
+        let realDelay = (sectionDuration + preRoll) / Double(max(playbackRate, 0.01))
         if realDelay > 0 {
             playbackEndTimer = makeCommonModeTimer(after: realDelay) { [weak self] in
                 self?.onSectionPlaybackFinished()

@@ -70,6 +70,15 @@ struct PracticeBuilderView: View {
                     mixLibrary.updateSections(for: mixID, sections: session.sections)
                 }
             }
+            .onChange(of: session.blocks) { _, _ in
+                // Persist per-mix block programming (reps, restSeconds, restartMode).
+                // Without this, switching to another mix and returning would silently
+                // reset rest length and rep counts because loadFromLibrary rebuilds
+                // blocks from sections.
+                if let mixID = session.mix?.id {
+                    mixLibrary.updateBlocks(for: mixID, blocks: session.blocks)
+                }
+            }
             .onDisappear {
                 stopPreview()
             }

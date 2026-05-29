@@ -56,6 +56,19 @@ struct LiveRunView: View {
             // Primary practice status cue card — houses the integrated play/pause control!
             cueStatusCard(block: block)
 
+            // Slide-to-skip-rest — only during rest, and only outside the warning
+            // tail (skipping into the warning is the whole point; in the tail the
+            // beeps are already firing). Replaces the old tap-to-skip so a stray
+            // finger can't cut the rest entirely.
+            if case .breakCountdown(let remaining) = controller.runner.phase,
+               remaining > PracticeBlock.countdownTailSeconds,
+               !controller.isPaused {
+                SlideToSkipRest {
+                    controller.skipBreakToCountdownTail()
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             // Block queue takes the remaining flexible vertical space
             blockQueueSection
                 .frame(maxHeight: .infinity, alignment: .top)
@@ -160,6 +173,12 @@ struct LiveRunView: View {
         let accent = PPColors.blockColor(at: controller.runner.currentBlockIndex)
         let attempted = controller.repsAttempted[block.id] ?? 0
         let isComplete = controller.runner.phase == .complete
+        // The rep currently being PLAYED (not paused, not resting). Drives the
+        // blinking pip in the cue card so the coach sees which rep is live.
+        let playingRep: Int? = {
+            guard !controller.isPaused, case .playing = controller.runner.phase else { return nil }
+            return controller.runner.currentRep
+        }()
         let borderColor: Color = isActivePhase
             ? phaseStatusColor.opacity(0.6)
             : (controller.runner.phase == .idle ? phaseStatusColor.opacity(0.5) : PPColors.cardBorder)
@@ -202,10 +221,12 @@ struct LiveRunView: View {
                     if !isComplete {
                         HStack(spacing: 4) {
                             ForEach(1...block.reps, id: \.self) { rep in
-                                Circle()
-                                    .fill(rep <= attempted ? accent : PPColors.cardBorder)
-                                    .frame(width: 9, height: 9)
-                                    .animation(.spring(response: 0.3), value: attempted)
+                                PipDot(
+                                    isCredited: rep <= attempted,
+                                    isPlayingNow: rep == playingRep,
+                                    accent: accent,
+                                    size: 9
+                                )
                             }
                             Text("\(attempted)/\(block.reps)")
                                 .font(PPFonts.mono(11))
@@ -255,11 +276,15 @@ struct LiveRunView: View {
 
             VStack(spacing: 2) {
                 ForEach(Array(controller.session.blocks.enumerated()), id: \.element.id) { index, block in
+                    let isPlayingThisBlock = !controller.isPaused
+                        && index == controller.runner.currentBlockIndex
+                        && controller.runner.phase == .playing
                     BlockQueueRow(
                         block: block,
                         index: index,
                         isActive: index == controller.runner.currentBlockIndex && controller.runner.phase != .complete,
                         attempted: controller.repsAttempted[block.id] ?? 0,
+                        playingRep: isPlayingThisBlock ? controller.runner.currentRep : nil,
                         accent: PPColors.blockColor(at: index)
                     ) {
                         controller.selectBlock(at: index)
@@ -397,7 +422,7 @@ struct LiveRunView: View {
         switch controller.runner.phase {
         case .idle: return "Start Playing"
         case .playing: return "Pause"
-        case .breakCountdown: return "Skip Rest"
+        case .breakCountdown: return "Resting — slide below to skip"
         case .waitingForManualStart: return "Start Next Rep"
         case .complete: return "Restart Session"
         }
@@ -408,7 +433,10 @@ struct LiveRunView: View {
         switch controller.runner.phase {
         case .idle: return "play.fill"
         case .playing: return "pause.fill"
-        case .breakCountdown: return "forward.fill"
+        case .breakCountdown(let s):
+            // Skip is now via the slide control; show a timer/metronome icon
+            // so the giant circle doesn't read as a tap-to-skip affordance.
+            return s <= PracticeBlock.countdownTailSeconds ? "metronome.fill" : "timer"
         case .waitingForManualStart: return "hand.tap.fill"
         case .complete: return "arrow.counterclockwise"
         }
@@ -447,7 +475,9 @@ struct LiveRunView: View {
         case .playing:
             controller.pausePlayback()
         case .breakCountdown:
-            controller.skipBreak()
+            // Skip-rest is now driven by the SlideToSkipRest control below the
+            // cue card — a stray tap on the card must not cut the rest short.
+            holdGuardNudgeCount &+= 1
         case .complete:
             controller.resetSession()
         }
@@ -461,6 +491,10 @@ private struct BlockQueueRow: View {
     let index: Int
     let isActive: Bool
     let attempted: Int
+    /// The rep currently being played in THIS block, or nil if this row is not
+    /// the active playing block (or the player is paused/resting). Drives the
+    /// blinking pip so the queue echoes the cue card's live state.
+    let playingRep: Int?
     let accent: Color
     let onTap: () -> Void
 
@@ -495,9 +529,12 @@ private struct BlockQueueRow: View {
                 if block.reps > 0 {
                     HStack(spacing: 4) {
                         ForEach(1...block.reps, id: \.self) { rep in
-                            Circle()
-                                .fill(rep <= attempted ? accent : PPColors.cardBorder)
-                                .frame(width: 8, height: 8)
+                            PipDot(
+                                isCredited: rep <= attempted,
+                                isPlayingNow: rep == playingRep,
+                                accent: accent,
+                                size: 8
+                            )
                         }
                     }
                 }
@@ -735,5 +772,123 @@ private struct GlobalTimelineStripView: View {
             }
             .font(PPFonts.mono(10))
         }
+    }
+}
+
+// MARK: - Pip Dot
+
+/// A single rep indicator. Credited reps fill solid in the block accent.
+/// The currently-playing rep blinks in the accent so the coach can see at a
+/// glance which rep is live. Idle reps are a flat cardBorder dot.
+private struct PipDot: View {
+    let isCredited: Bool
+    let isPlayingNow: Bool
+    let accent: Color
+    var size: CGFloat = 9
+
+    var body: some View {
+        if isPlayingNow {
+            // TimelineView.animation redraws every frame so the sine-driven
+            // opacity is reliable across phase transitions — no @State race.
+            TimelineView(.animation) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                // ~0.9Hz sinusoid → 0.35–1.0 opacity range. Calm, not strobey.
+                let envelope = (sin(t * .pi * 1.8) * 0.5) + 0.5
+                Circle()
+                    .fill(accent)
+                    .frame(width: size, height: size)
+                    .opacity(0.35 + envelope * 0.65)
+            }
+            .frame(width: size, height: size)
+        } else {
+            Circle()
+                .fill(isCredited ? accent : PPColors.cardBorder)
+                .frame(width: size, height: size)
+        }
+    }
+}
+
+// MARK: - Slide To Skip Rest
+
+/// A horizontal "slide-to-confirm" control. The thumb starts on the left; the
+/// user drags it past 85% of the track width to fire the action. A stray tap
+/// must NOT trigger the action — that's the whole point during a rest interval.
+private struct SlideToSkipRest: View {
+    let onConfirm: () -> Void
+
+    @State private var dragX: CGFloat = 0
+    @State private var confirmed = false
+
+    private let thumbSize: CGFloat = 44
+    private let triggerFraction: CGFloat = 0.85
+
+    var body: some View {
+        GeometryReader { geo in
+            let trackWidth = geo.size.width
+            let maxDrag = max(trackWidth - thumbSize, 0)
+            let progress = maxDrag > 0 ? min(dragX / maxDrag, 1) : 0
+
+            ZStack(alignment: .leading) {
+                // Track
+                RoundedRectangle(cornerRadius: thumbSize / 2)
+                    .fill(PPColors.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: thumbSize / 2)
+                            .strokeBorder(PPColors.accentOrange.opacity(0.5), lineWidth: 1)
+                    )
+
+                // Filled track behind the thumb
+                RoundedRectangle(cornerRadius: thumbSize / 2)
+                    .fill(PPColors.accentOrange.opacity(0.25 + 0.45 * progress))
+                    .frame(width: dragX + thumbSize)
+
+                // Label
+                HStack {
+                    Spacer()
+                    Text(confirmed ? "Skipping to warning…" : "Slide to skip rest →")
+                        .font(PPFonts.headline(13))
+                        .tracking(0.5)
+                        .foregroundStyle(PPColors.textPrimary.opacity(0.85 - 0.4 * progress))
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+
+                // Thumb
+                ZStack {
+                    Circle()
+                        .fill(PPColors.accentOrange)
+                        .shadow(color: PPColors.accentOrange.opacity(0.4), radius: 6, x: 0, y: 2)
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 16, weight: .black))
+                        .foregroundStyle(.black)
+                }
+                .frame(width: thumbSize, height: thumbSize)
+                .offset(x: dragX)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            guard !confirmed else { return }
+                            dragX = max(0, min(value.translation.width, maxDrag))
+                        }
+                        .onEnded { _ in
+                            guard !confirmed else { return }
+                            if progress >= triggerFraction {
+                                confirmed = true
+                                withAnimation(.spring(response: 0.25)) {
+                                    dragX = maxDrag
+                                }
+                                onConfirm()
+                            } else {
+                                withAnimation(.spring(response: 0.3)) {
+                                    dragX = 0
+                                }
+                            }
+                        }
+                )
+            }
+        }
+        .frame(height: thumbSize)
+        .padding(.horizontal, 4)
+        .sensoryFeedback(.success, trigger: confirmed)
     }
 }

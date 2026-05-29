@@ -20,14 +20,18 @@ final class MixLibraryStore {
 
     // MARK: - Public API
 
-    func save(_ mix: ImportedMix, sections: [PracticeSection]) {
+    func save(_ mix: ImportedMix, sections: [PracticeSection], blocks: [PracticeBlock] = []) {
         if let index = mixes.firstIndex(where: { $0.mix.id == mix.id }) {
             mixes[index].sections = sections
+            if !blocks.isEmpty {
+                mixes[index].blocks = blocks
+            }
         } else {
             let entry = SavedMix(
                 id: UUID(),
                 mix: mix,
                 sections: sections,
+                blocks: blocks,
                 dateAdded: Date()
             )
             mixes.insert(entry, at: 0)
@@ -38,6 +42,14 @@ final class MixLibraryStore {
     func updateSections(for mixID: UUID, sections: [PracticeSection]) {
         guard let index = mixes.firstIndex(where: { $0.mix.id == mixID }) else { return }
         mixes[index].sections = sections
+        persist()
+    }
+
+    /// Persist the block programming for this mix so reps/rest/restartMode
+    /// survive switching to another mix and coming back.
+    func updateBlocks(for mixID: UUID, blocks: [PracticeBlock]) {
+        guard let index = mixes.firstIndex(where: { $0.mix.id == mixID }) else { return }
+        mixes[index].blocks = blocks
         persist()
     }
 
