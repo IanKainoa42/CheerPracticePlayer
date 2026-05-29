@@ -115,3 +115,15 @@
 - **What happened:** Reps and rest length silently reset when switching to a different mix and returning, because `SavedMix` only persisted sections and `RootTabView.loadFromLibrary` rebuilt blocks via `addBlock(for: section)` (defaults). Sections persisted (already in `SavedMix.sections`) but block programming did not.
 - **Rule:** When introducing per-mix programmable parameters (reps, rest, restartMode), persist them keyed by mix on the same `SavedMix` record, with a custom `init(from:)` that defaults missing keys to `[]` for backward-compat with older libraries. Sync via `.onChange(of: session.blocks)` in the builder.
 - **Related UX:** "Skip rest" buttons in interval-trainer apps must NEVER skip past the warning beeps — that's the whole point of the warning. Use `skipBreakToCountdownTail()` to jump into the 5-second GET READY tail instead of straight to `.playing`. Replace any tap-to-skip with a slide-to-confirm so a stray tap can't cut rest entirely (`SlideToSkipRest` component, 85% triggerFraction).
+
+## 2026-05-29 — No-simulator rule is for active development, NOT for QA
+
+- **Category:** correction
+- **What happened:** I asked the user how to run /qa given the project's "never use iOS Simulator" rule. They clarified the rule's actual scope.
+- **Rule:** The "no simulator" rule applies to **active development** (coding/testing features I just built). For **QA runs**, always use the simulator (or a device if available AND not currently in use by the user). Right now the user is on the iPad — don't deploy QA builds to ianPad while they're using it; use the sim. Update `feedback_no_simulator` memory to reflect this scope.
+
+## 2026-05-29 — Linear workspace hit free-issue quota; save_issue 6×failed
+
+- **Category:** knowledge_gap
+- **What happened:** Tried to file 6 QA findings via `mcp__claude_ai_Linear__save_issue` in one batch. All 6 returned `Usage limit exceeded - You've exceeded the free issue limit for this workspace.` Linear's Free plan caps total issues per workspace.
+- **Rule:** Before batch-filing issues to Ianplus, check the workspace's quota. If quota is hit, save a paste-ready markdown file (one issue per H2 with title/body/labels/priority) next to the QA report so the user can paste manually when they get to it. Don't silently lose findings.

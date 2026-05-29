@@ -56,18 +56,11 @@ struct LiveRunView: View {
             // Primary practice status cue card — houses the integrated play/pause control!
             cueStatusCard(block: block)
 
-            // Slide-to-skip-rest — only during rest, and only outside the warning
-            // tail (skipping into the warning is the whole point; in the tail the
-            // beeps are already firing). Replaces the old tap-to-skip so a stray
-            // finger can't cut the rest entirely.
-            if case .breakCountdown(let remaining) = controller.runner.phase,
-               remaining > PracticeBlock.countdownTailSeconds,
-               !controller.isPaused {
-                SlideToSkipRest {
-                    controller.skipBreakToCountdownTail()
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+            // Slide-to-skip-rest slot — ALWAYS occupies the same vertical space
+            // so the cue card and block queue below never reflow when entering
+            // or leaving rest. The slide control is only interactive during rest
+            // with remaining > tail; otherwise the slot renders empty.
+            slideSkipSlot
 
             // Block queue takes the remaining flexible vertical space
             blockQueueSection
@@ -143,6 +136,29 @@ struct LiveRunView: View {
         case .idle:
             return (Int(sectionDuration.rounded(.up)), 1, "READY", PPColors.textSecondary, true)
         }
+    }
+
+    // MARK: - Slide-to-skip slot
+
+    /// Fixed-height container for the slide-to-skip-rest control. Reserved on
+    /// EVERY phase so the cue card + block queue below stay anchored — the
+    /// "no reflow" promise made by the always-present countdown ring would
+    /// otherwise be broken by this widget appearing/disappearing.
+    private var slideSkipSlot: some View {
+        ZStack {
+            if case .breakCountdown(let remaining) = controller.runner.phase,
+               remaining > PracticeBlock.countdownTailSeconds,
+               !controller.isPaused {
+                SlideToSkipRest {
+                    controller.skipBreakToCountdownTail()
+                }
+                .transition(.opacity)
+            }
+        }
+        // Match SlideToSkipRest's thumbSize (44) so the slot is exactly its height.
+        .frame(height: 44)
+        .animation(.easeInOut(duration: 0.2), value: controller.runner.phase)
+        .animation(.easeInOut(duration: 0.2), value: controller.isPaused)
     }
 
     // MARK: - Cue Status Card

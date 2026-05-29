@@ -34,7 +34,9 @@ struct RootTabView: View {
                 library: mixLibrary,
                 onSelectMix: { saved in
                     loadFromLibrary(saved)
-                    selectedTab = 1
+                    // Library IS the dashboard — tapping a programmed mix should
+                    // drop the coach straight into Live to run it, not into Build.
+                    selectedTab = 2
                 },
                 onImportTapped: {
                     requestImportFromBuild = true
