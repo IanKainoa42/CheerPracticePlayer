@@ -517,7 +517,7 @@ struct PracticeBuilderView: View {
     private func duplicateSection(_ section: PracticeSection) {
         let newSection = PracticeSection(
             id: UUID(),
-            name: "\(section.name) Copy",
+            name: "\(section.displayName) Copy",
             type: section.type,
             startTime: section.startTime,
             endTime: section.endTime

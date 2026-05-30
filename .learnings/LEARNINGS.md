@@ -127,3 +127,9 @@
 - **Category:** knowledge_gap
 - **What happened:** Tried to file 6 QA findings via `mcp__claude_ai_Linear__save_issue` in one batch. All 6 returned `Usage limit exceeded - You've exceeded the free issue limit for this workspace.` Linear's Free plan caps total issues per workspace.
 - **Rule:** Before batch-filing issues to Ianplus, check the workspace's quota. If quota is hit, save a paste-ready markdown file (one issue per H2 with title/body/labels/priority) next to the QA report so the user can paste manually when they get to it. Don't silently lose findings.
+
+## 2026-05-29 — Section name: single source of truth via displayName
+
+- **Category:** best_practice
+- **What happened:** Live tab displayed section name from TWO fields — `block.title` (cue card, queue) and `block.section.name` (timeline footer) — kept equal only by manual mirroring in PrototypeSession.upsertSection/addBlock. Fragile (sample data already diverged) and the raw `name` allowed empty/whitespace → blank Live UI.
+- **Rule:** Display the section name ONLY via `PracticeSection.displayName` (trims + falls back to "New Section"). Never read `block.title` or raw `section.name` for display. `block.title` stays for Codable/persistence but is vestigial. Build TextField still binds raw `section.name` so typing (spaces) works — robustness lives at the display layer, not the keystroke setter.

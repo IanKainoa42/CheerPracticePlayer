@@ -226,7 +226,7 @@ struct LiveRunView: View {
                 // Center column: title + phase label + pips
                 VStack(alignment: .leading, spacing: 4) {
                     if !isComplete {
-                        Text(block.title)
+                        Text(block.section.displayName)
                             .font(PPFonts.headline(15))
                             .foregroundStyle(PPColors.textPrimary)
                             .lineLimit(1)
@@ -535,7 +535,7 @@ private struct BlockQueueRow: View {
                     }
                 }
 
-                Text(block.title)
+                Text(block.section.displayName)
                     .font(PPFonts.headline(14))
                     .foregroundStyle(isActive ? PPColors.textPrimary : PPColors.textSecondary)
                     .lineLimit(1)
@@ -779,7 +779,7 @@ private struct GlobalTimelineStripView: View {
                     .foregroundStyle(PPColors.accentYellow)
                 Spacer()
                 if let block = activeBlock {
-                    Text(block.section.name)
+                    Text(block.section.displayName)
                         .foregroundStyle(PPColors.textTertiary)
                     Spacer()
                 }

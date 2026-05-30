@@ -169,7 +169,7 @@ final class LiveSessionController {
         runner.jumpToBlock(index: index)
         audioPlayer.pause()
         isPaused = false
-        audioStatus = "Ready — \(runner.currentBlock?.title ?? "Block \(index + 1)")"
+        audioStatus = "Ready — \(runner.currentBlock?.section.displayName ?? "Block \(index + 1)")"
     }
 
     func pausePlayback() {
@@ -427,7 +427,7 @@ final class LiveSessionController {
 
         do {
             try audioPlayer.load(url: mix.localURL)
-            audioStatus = "Loaded \(block.section.name)"
+            audioStatus = "Loaded \(block.section.displayName)"
             return true
         } catch {
             audioStatus = error.localizedDescription
@@ -453,7 +453,7 @@ final class LiveSessionController {
             startTime: block.section.startTime,
             endTime: block.section.endTime
         )
-        audioStatus = "Playing \(block.section.name) — Rep \(runner.currentRep)/\(block.reps)"
+        audioStatus = "Playing \(block.section.displayName) — Rep \(runner.currentRep)/\(block.reps)"
         startPlayheadTimer()
 
         // Schedule auto-advance when the section finishes playing. The engine
@@ -535,7 +535,7 @@ final class LiveSessionController {
             return "Ready"
         case .playing:
             if let block = runner.currentBlock {
-                return "Playing \(block.section.name) — Rep \(runner.currentRep)/\(block.reps)"
+                return "Playing \(block.section.displayName) — Rep \(runner.currentRep)/\(block.reps)"
             }
             return "Playing"
         case .breakCountdown(let secondsRemaining):

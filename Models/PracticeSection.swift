@@ -22,6 +22,14 @@ struct PracticeSection: Identifiable, Hashable, Codable {
         max(endTime - startTime, 0)
     }
 
+    /// Display-safe name: trimmed, with a fallback when the user clears the field
+    /// to empty/whitespace. This is the single source of truth for the name shown
+    /// in the Live tab — never read `name` directly for display.
+    var displayName: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "New Section" : trimmed
+    }
+
     func clamped(to totalDuration: TimeInterval) -> PracticeSection {
         let boundedDuration = max(totalDuration, 0)
         let clampedStart = min(max(startTime, 0), boundedDuration)
