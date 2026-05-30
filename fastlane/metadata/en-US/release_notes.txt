@@ -1,0 +1,13 @@
+Quality-of-life update for the live run.
+
+• Slide-to-skip-rest is now the manual "go" — countdown beeps, then your next rep starts automatically. No second tap.
+• Edit a section while a session is running and you'll see a quick "Edit saved — applies at next rep" banner.
+• Always-visible END button on the Live tab, with a confirmation alert so a stray tap doesn't blow up practice.
+• Section delete now asks before destroying your reps / rest / trim settings.
+• Duplicating a section now carries over your reps, rest, and restart mode instead of resetting them.
+• The trimmer now hints the full mix duration so you can tell it isn't capped.
+• Section name field's placeholder no longer concatenates with what you type.
+• Tapping a mix in your Library drops you straight into Live to run it.
+• Portrait-locked layout — no more sideways content when you rotate.
+
+Thanks for using PracticeMix. Feedback welcome.
