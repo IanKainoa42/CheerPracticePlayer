@@ -201,6 +201,15 @@ struct WaveformTrimmerView: View {
 struct TrimTimeLabelsView: View {
     let startTime: TimeInterval
     let endTime: TimeInterval
+    /// When provided AND larger than `endTime`, render a faint "of M:SS" suffix
+    /// next to the end label so the user can see the trimmer can be dragged further
+    /// to cover the remainder of the mix (QA M1).
+    var mixDuration: TimeInterval? = nil
+
+    private var showsMaxHint: Bool {
+        guard let d = mixDuration else { return false }
+        return d > endTime + 0.5
+    }
 
     var body: some View {
         HStack {
@@ -214,6 +223,10 @@ struct TrimTimeLabelsView: View {
             Spacer()
             HStack(spacing: 4) {
                 Text(Formatters.clock(endTime))
+                if showsMaxHint, let d = mixDuration {
+                    Text("/ \(Formatters.clock(d))")
+                        .foregroundStyle(PPColors.textTertiary)
+                }
                 Circle().fill(PPColors.accentOrange).frame(width: 6, height: 6)
             }
         }

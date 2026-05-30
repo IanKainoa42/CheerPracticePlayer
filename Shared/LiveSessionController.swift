@@ -29,6 +29,16 @@ final class LiveSessionController {
     private(set) var playbackEndTimer: Timer?
     private var playheadTimer: Timer?
     private var currentSegmentEndTime: TimeInterval = 0
+    /// Set true when the user slide-to-skips during a rest. Tells the countdown
+    /// completion to auto-start the next rep even in Manual mode — the slide
+    /// itself is the "go" signal, so a second tap is redundant.
+    private var slideQueuedAutoStart = false
+    /// Non-modal notice surfaced to the Live tab when the user edits the
+    /// currently-active block (or its section) while a session is in flight.
+    /// The in-flight rep keeps its original timing; the new values apply at
+    /// the next rep. Auto-clears after a few seconds.
+    private(set) var pendingEditNotice: String?
+    private var editNoticeDismissTask: DispatchWorkItem?
 
     init(session: PrototypeSession, audioPlayer: AudioPlaybackControlling = AudioPlaybackEngine()) {
         self.session = session
@@ -37,10 +47,65 @@ final class LiveSessionController {
     }
 
     func syncSession(_ session: PrototypeSession) {
+        // Snapshot the active block BEFORE the runner picks up the new template,
+        // so we can detect mid-flight edits and surface a non-modal notice.
+        let activePhaseBeforeSync = runner.phase
+        let previousActiveBlock = runner.currentBlock
+
         self.session = session
         runner.syncTemplate(session)
         audioStatus = session.mix == nil ? "Import a mix to enable playback" : "Ready"
         loadWaveformIfNeeded()
+
+        detectMidFlightEdit(
+            activePhaseBefore: activePhaseBeforeSync,
+            previousBlock: previousActiveBlock
+        )
+    }
+
+    /// If a session was actively running (playing or in a rest countdown) and the
+    /// user edited the in-flight block (trim handles / name / reps / rest /
+    /// restart mode), surface a brief non-interfering notice telling them the
+    /// change applies at the next rep — the current rep keeps its original
+    /// schedule because the playback timer is already armed for that endTime.
+    private func detectMidFlightEdit(
+        activePhaseBefore: LivePlaybackPhase,
+        previousBlock: PracticeBlock?
+    ) {
+        guard let previous = previousBlock else { return }
+        switch activePhaseBefore {
+        case .playing, .breakCountdown:
+            break
+        case .idle, .waitingForManualStart, .complete:
+            return
+        }
+        guard let updated = session.blocks.first(where: { $0.id == previous.id }) else {
+            // Block was deleted mid-flight — that's a structural change the runner
+            // already routes via syncTemplate; no toast needed.
+            return
+        }
+        guard updated != previous else { return }
+        showEditNotice("Edit saved — applies at next rep")
+    }
+
+    private func showEditNotice(_ message: String) {
+        editNoticeDismissTask?.cancel()
+        pendingEditNotice = message
+        let task = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            if self.pendingEditNotice == message {
+                self.pendingEditNotice = nil
+            }
+        }
+        editNoticeDismissTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5, execute: task)
+    }
+
+    /// Public dismiss for the edit notice — e.g. tap-to-dismiss on the banner.
+    func dismissEditNotice() {
+        editNoticeDismissTask?.cancel()
+        editNoticeDismissTask = nil
+        pendingEditNotice = nil
     }
 
     func seek(to time: TimeInterval) {
@@ -145,6 +210,7 @@ final class LiveSessionController {
     func skipBlock() {
         creditCurrentRepIfThresholdMet()
         stopCountdown()
+        slideQueuedAutoStart = false
         runner.skipBlock()
         guard runner.phase != .complete else {
             audioPlayer.pause()
@@ -166,6 +232,7 @@ final class LiveSessionController {
 
     func jumpToBlock(index: Int) {
         stopCountdown()
+        slideQueuedAutoStart = false
         runner.jumpToBlock(index: index)
         audioPlayer.pause()
         isPaused = false
@@ -250,6 +317,10 @@ final class LiveSessionController {
             return
         }
         runner.fastForwardBreak(toRemaining: tail)
+        // Slide is the manual "go" — auto-start the next rep when the countdown
+        // completes, even if the block is in Manual mode. Without this the coach
+        // gets countdown beeps and then has to tap again to begin playback.
+        slideQueuedAutoStart = true
         audioStatus = phaseDescription
         // Trigger the entry-to-tail double beep that would have fired had we
         // ticked there naturally; tickCountdown handles single beeps on subsequent ticks.
@@ -270,6 +341,7 @@ final class LiveSessionController {
         cancelPlaybackEnd()
         audioPlayer.pause()
         runner.resetSession()
+        slideQueuedAutoStart = false
         isPaused = false
         elapsedSessionTime = 0
         currentPlaybackTime = 0
@@ -385,8 +457,17 @@ final class LiveSessionController {
                 guard prepareCurrentBlockForPlayback() else { return }
                 playCurrentSection()
             case .waitingForManualStart:
-                audioPlayer.pause()
-                stopPlayheadTimer()
+                if slideQueuedAutoStart {
+                    // Slide-to-skip during rest already authorized the next rep.
+                    // Promote the runner to .playing and start audio.
+                    slideQueuedAutoStart = false
+                    runner.startFromManualWait()
+                    guard prepareCurrentBlockForPlayback() else { return }
+                    playCurrentSection()
+                } else {
+                    audioPlayer.pause()
+                    stopPlayheadTimer()
+                }
             case .idle, .breakCountdown, .complete:
                 break
             }

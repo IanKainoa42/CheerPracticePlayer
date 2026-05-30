@@ -7,6 +7,7 @@ struct LiveRunView: View {
     /// Bumped each time the user taps the cue card while it is actively playing.
     /// Acts as a trigger for warning haptics — pause requires a hold gesture.
     @State private var holdGuardNudgeCount: Int = 0
+    @State private var isResetConfirmPresented = false
 
     var body: some View {
         NavigationStack {
@@ -18,6 +19,8 @@ struct LiveRunView: View {
                 } else {
                     emptyStateView
                 }
+
+                editNoticeBanner
             }
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
@@ -40,6 +43,46 @@ struct LiveRunView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Edit Notice Banner
+
+    /// Non-interfering banner that surfaces a transient notice (e.g. "Edit saved —
+    /// applies at next rep") when the user mutates the in-flight block from the
+    /// Build tab. Floats over the top of the Live view, fades in/out, auto-dismisses,
+    /// and tap-to-dismiss. Never intercepts gestures meant for the play controls.
+    @ViewBuilder
+    private var editNoticeBanner: some View {
+        VStack {
+            if let message = controller.pendingEditNotice {
+                HStack(spacing: 10) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text(message)
+                        .font(PPFonts.body(14))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(PPColors.textPrimary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(PPColors.card)
+                        .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
+                )
+                .overlay(
+                    Capsule().strokeBorder(PPColors.accentYellow.opacity(0.6), lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .onTapGesture { controller.dismissEditNotice() }
+            }
+            Spacer()
+        }
+        .animation(.easeInOut(duration: 0.25), value: controller.pendingEditNotice)
+        .allowsHitTesting(controller.pendingEditNotice != nil)
     }
 
     // MARK: - Active Session
@@ -315,11 +358,46 @@ struct LiveRunView: View {
     // MARK: - Bottom Action Bar
 
     private var bottomActionBar: some View {
-        HStack {
+        HStack(spacing: 12) {
             Spacer()
             speedPill
             Spacer()
+            endSessionButton
         }
+        .alert(
+            "End this session?",
+            isPresented: $isResetConfirmPresented
+        ) {
+            Button("Cancel", role: .cancel) {}
+            Button("End Session", role: .destructive) { controller.resetSession() }
+        } message: {
+            Text("Audio stops and the runner resets to the first block. Reps attempted this session are cleared.")
+        }
+    }
+
+    /// Visible, always-on Reset button. The toolbar ⋯ menu was easy to miss
+    /// during active playback; coaches need a clear way to wipe the runner
+    /// without hunting through a menu. Confirmation alert prevents accidental
+    /// taps from nuking a live practice.
+    private var endSessionButton: some View {
+        Button {
+            isResetConfirmPresented = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "stop.fill")
+                    .font(.system(size: 12, weight: .bold))
+                Text("END")
+                    .font(PPFonts.caption(10))
+                    .tracking(1.4)
+            }
+            .foregroundStyle(PPColors.accentOrange)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(Capsule().fill(PPColors.card))
+            .overlay(Capsule().strokeBorder(PPColors.accentOrange.opacity(0.6), lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var speedPill: some View {

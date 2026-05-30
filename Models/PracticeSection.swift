@@ -48,9 +48,12 @@ struct PracticeSection: Identifiable, Hashable, Codable {
         let boundedDuration = max(totalDuration, 0)
         let proposedEnd = min(32, Int(boundedDuration))
 
+        // Empty name so the TextField's "Section name" placeholder renders.
+        // `displayName` falls back to "New Section" everywhere the name is read for
+        // display, so the placeholder reads naturally and typing replaces it cleanly.
         return PracticeSection(
             id: UUID(),
-            name: "New Section",
+            name: "",
             type: .custom,
             startTime: 0,
             endTime: TimeInterval(proposedEnd)

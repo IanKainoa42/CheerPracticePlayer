@@ -188,6 +188,15 @@ struct SessionRunnerState {
         phase = .breakCountdown(secondsRemaining: seconds)
     }
 
+    /// Promote a parked manual-start phase directly into `.playing` without
+    /// touching currentRep. Used by slide-to-skip so the coach's slide doubles
+    /// as the manual "go" — the next rep starts automatically when the countdown
+    /// completes, instead of waiting for a separate tap.
+    mutating func startFromManualWait() {
+        guard case .waitingForManualStart = phase else { return }
+        phase = .playing
+    }
+
     mutating func restartBlock() {
         currentRep = 1
         phase = .playing

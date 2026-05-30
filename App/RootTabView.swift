@@ -9,6 +9,10 @@ struct RootTabView: View {
 
     @State private var selectedTab: Int
     @State private var requestImportFromBuild = false
+    /// Tab the user was on when the file picker was opened — restored on cancel
+    /// so kicking off IMPORT MIX from Library and tapping Cancel returns to
+    /// Library, not Build (QA L2).
+    @State private var importOriginTab: Int = 1
 
     init(
         session: Binding<PrototypeSession>,
@@ -39,6 +43,7 @@ struct RootTabView: View {
                     selectedTab = 2
                 },
                 onImportTapped: {
+                    importOriginTab = selectedTab
                     requestImportFromBuild = true
                     selectedTab = 1
                 }
@@ -52,7 +57,14 @@ struct RootTabView: View {
                 session: $session,
                 mixLibrary: mixLibrary,
                 audioEngine: audioEngine,
-                requestImport: $requestImportFromBuild
+                requestImport: $requestImportFromBuild,
+                onImportCancelled: {
+                    // Picker dismissed without picking a file. Restore the tab
+                    // the user was on when they triggered IMPORT MIX.
+                    if importOriginTab != 1 {
+                        selectedTab = importOriginTab
+                    }
+                }
             )
             .tabItem {
                 Label("Build", systemImage: "slider.horizontal.3")

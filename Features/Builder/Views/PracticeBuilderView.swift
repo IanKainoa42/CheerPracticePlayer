@@ -5,8 +5,14 @@ struct PracticeBuilderView: View {
     let mixLibrary: MixLibraryStore
     let audioEngine: AudioPlaybackEngine
     @Binding var requestImport: Bool
+    /// Called when the system file picker dismisses WITHOUT a successful import
+    /// (user tapped Cancel or the importer failed). Lets the parent restore
+    /// the originating tab — e.g. tap IMPORT MIX from Library → Cancel → back to Library
+    /// instead of being stranded on Build (QA L2).
+    var onImportCancelled: (() -> Void)? = nil
 
     @State private var isImportingMix = false
+    @State private var didImportSucceed = false
     @State private var importErrorMessage: String?
     @State private var waveformSamples: [Float] = []
     @State private var previewingSection: PracticeSection?
@@ -62,7 +68,16 @@ struct PracticeBuilderView: View {
             .onChange(of: requestImport) { _, newValue in
                 if newValue {
                     requestImport = false
+                    didImportSucceed = false
                     isImportingMix = true
+                }
+            }
+            .onChange(of: isImportingMix) { wasPresenting, isPresenting in
+                // Picker dismissed without a successful import → tell the parent
+                // so it can restore the originating tab (Library, if that's where
+                // the user kicked off the import from).
+                if wasPresenting && !isPresenting && !didImportSucceed {
+                    onImportCancelled?()
                 }
             }
             .onChange(of: session.sections) { _, _ in
@@ -183,7 +198,8 @@ struct PracticeBuilderView: View {
 
                             TrimTimeLabelsView(
                                 startTime: section.startTime,
-                                endTime: section.endTime
+                                endTime: section.endTime,
+                                mixDuration: session.mixDuration
                             )
 
                             if canSave {
@@ -522,9 +538,25 @@ struct PracticeBuilderView: View {
             startTime: section.startTime,
             endTime: section.endTime
         )
+        // Carry the source block's programming (reps / rest / restartMode)
+        // into the duplicate. Without this, duplicating a 7-rep / 35s-rest /
+        // manual block silently resets it to defaults (QA M4).
+        let sourceBlock = session.blocks.first(where: { $0.section.id == section.id })
         withAnimation(.spring(response: 0.35)) {
             session.addSection(newSection)
-            if let added = session.sections.first(where: { $0.id == newSection.id }) {
+            guard let added = session.sections.first(where: { $0.id == newSection.id }) else { return }
+            if let src = sourceBlock {
+                session.blocks.append(
+                    PracticeBlock(
+                        id: UUID(),
+                        title: added.name,
+                        section: added.clamped(to: session.mixDuration),
+                        reps: src.reps,
+                        restSeconds: src.restSeconds,
+                        restartMode: src.restartMode
+                    )
+                )
+            } else {
                 session.addBlock(for: added)
             }
         }
@@ -554,6 +586,7 @@ struct PracticeBuilderView: View {
             do {
                 let importedMix = try await MixImportService().importMix(from: selectedURL)
                 await MainActor.run {
+                    didImportSucceed = true
                     session.attachMix(importedMix)
                     session.sections = []
                     session.blocks = []
@@ -589,6 +622,7 @@ private struct ProgramSectionCard: View {
     let onSeek: (TimeInterval) -> Void
 
     @State private var isRestartHelpPresented = false
+    @State private var isDeleteConfirmPresented = false
 
     private var numberLabel: String {
         String(format: "%02d", index + 1)
@@ -602,7 +636,11 @@ private struct ProgramSectionCard: View {
         VStack(spacing: 16) {
             header
             waveform
-            TrimTimeLabelsView(startTime: section.startTime, endTime: section.endTime)
+            TrimTimeLabelsView(
+                startTime: section.startTime,
+                endTime: section.endTime,
+                mixDuration: maxDuration
+            )
             previewControl
             stepperTrio
             restartPicker
@@ -610,6 +648,19 @@ private struct ProgramSectionCard: View {
         }
         .padding(18)
         .background(RoundedRectangle(cornerRadius: 18).fill(PPColors.card))
+        // Using `.alert` (not `.confirmationDialog`) so iPad shows a centered
+        // modal with an explicit Cancel button. On iPad, confirmationDialog renders
+        // as a popover that dismisses on tap-off with no labeled Cancel — coaches
+        // were unsure whether tap-off saved or canceled the destructive action.
+        .alert(
+            "Delete \"\(section.displayName)\"?",
+            isPresented: $isDeleteConfirmPresented
+        ) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete Section", role: .destructive) { onDelete() }
+        } message: {
+            Text("Its reps, rest length, and time range will be removed. This can't be undone.")
+        }
     }
 
     private var header: some View {
@@ -652,7 +703,9 @@ private struct ProgramSectionCard: View {
                 Button { onDuplicate() } label: {
                     Label("Duplicate", systemImage: "doc.on.doc")
                 }
-                Button(role: .destructive) { onDelete() } label: {
+                Button(role: .destructive) {
+                    isDeleteConfirmPresented = true
+                } label: {
                     Label("Delete Section", systemImage: "trash")
                 }
             } label: {
