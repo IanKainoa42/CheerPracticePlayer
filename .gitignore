@@ -25,3 +25,9 @@ fastlane/test_output
 fastlane/builds
 *.ipa
 *.dSYM.zip
+
+# Build artifacts (screenshots, video exports, brand media, generated fastlane README)
+AppStoreScreenshots/
+*.mp4
+marketing/
+fastlane/README.md
