@@ -121,6 +121,32 @@ final class CheerPracticePlayerTests: XCTestCase {
         XCTAssertEqual(session.totalEstimatedDuration, manualTotal, accuracy: 0.001)
     }
 
+    func testSavedMixEstimatedSessionDuration_MatchesSessionTotal() {
+        let sample = PrototypeSession.sample
+        guard let mix = sample.mix else {
+            return XCTFail("Sample session must carry a mix")
+        }
+        let saved = SavedMix(
+            id: UUID(),
+            mix: mix,
+            sections: sample.sections,
+            blocks: sample.blocks,
+            dateAdded: Date()
+        )
+
+        // Library row and Builder "Est" must report the identical run length.
+        XCTAssertEqual(
+            saved.estimatedSessionDuration,
+            sample.totalEstimatedDuration,
+            accuracy: 0.001,
+            "SavedMix run estimate should match the programmed session total"
+        )
+    }
+
+    func testTotalEstimatedDuration_EmptyBlocksIsZero() {
+        XCTAssertEqual(PracticeBlock.totalEstimatedDuration(for: []), 0, accuracy: 0.001)
+    }
+
     func testRunnerAdvance_MovesToNextBlockAfterFinalRep() {
         var runner = SessionRunnerState(template: PrototypeSession.sample)
         runner.start()

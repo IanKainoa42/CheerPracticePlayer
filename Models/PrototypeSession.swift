@@ -22,20 +22,7 @@ struct PrototypeSession: Identifiable, Equatable {
     }
 
     var totalEstimatedDuration: TimeInterval {
-        blocks.enumerated().reduce(0) { total, pair in
-            let (index, block) = pair
-            let repCount = max(block.reps, 0)
-            let sectionDuration = block.section.duration * Double(repCount)
-
-            // Internal gaps between reps of the same block
-            let internalGaps = max(repCount - 1, 0)
-            let internalRest = Double(internalGaps * block.restSeconds)
-
-            // External gap before the first rep of this block (if not the first block)
-            let externalRest = index > 0 ? Double(block.restSeconds) : 0
-
-            return total + sectionDuration + internalRest + externalRest
-        }
+        PracticeBlock.totalEstimatedDuration(for: blocks)
     }
 
     mutating func attachMix(_ mix: ImportedMix) {

@@ -48,4 +48,17 @@ struct PracticeBlock: Identifiable, Hashable, Codable {
         let restDuration = Double(restWindows * restSeconds)
         return sectionDuration + restDuration
     }
+
+    /// Total estimated wall-clock time to run `blocks` back to back, including
+    /// the rest gap before each block after the first. Shared by
+    /// `PrototypeSession.totalEstimatedDuration` and `SavedMix` so the Builder
+    /// and Library screens report identical numbers.
+    static func totalEstimatedDuration(for blocks: [PracticeBlock]) -> TimeInterval {
+        blocks.enumerated().reduce(0) { total, pair in
+            let (index, block) = pair
+            // External gap before the first rep of this block (skipped for the first block).
+            let externalRest = index > 0 ? Double(block.restSeconds) : 0
+            return total + block.estimatedDuration + externalRest
+        }
+    }
 }

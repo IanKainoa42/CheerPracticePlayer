@@ -14,6 +14,12 @@ struct SavedMix: Identifiable, Codable, Equatable {
     var duration: TimeInterval { mix.duration }
     var sectionCount: Int { sections.count }
 
+    /// Estimated wall-clock time to run this mix's programmed blocks end to end.
+    /// Matches the Builder's "Est" total so the Library can preview run length.
+    var estimatedSessionDuration: TimeInterval {
+        PracticeBlock.totalEstimatedDuration(for: blocks)
+    }
+
     init(id: UUID, mix: ImportedMix, sections: [PracticeSection], blocks: [PracticeBlock] = [], dateAdded: Date) {
         self.id = id
         self.mix = mix

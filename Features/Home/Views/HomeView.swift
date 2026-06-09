@@ -187,6 +187,9 @@ private struct MixLibraryRow: View {
                 .foregroundStyle(PPColors.textTertiary)
 
                 HStack(spacing: 10) {
+                    if !savedMix.blocks.isEmpty {
+                        Label("\(Formatters.clock(savedMix.estimatedSessionDuration)) run", systemImage: "stopwatch")
+                    }
                     if savedMix.sectionCount > 0 {
                         Text("\(coveragePercent)% covered")
                     }
