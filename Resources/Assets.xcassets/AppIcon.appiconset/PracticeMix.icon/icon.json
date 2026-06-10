@@ -1,0 +1,64 @@
+{
+  "fill": {
+    "automatic-gradient": "display-p3:0.98000,0.55000,0.12000,1.00000"
+  },
+  "groups": [
+    {
+      "blur-material": 0.72,
+      "layers": [
+        {
+          "blend-mode": "normal",
+          "fill": "none",
+          "glass": true,
+          "image-name": "PracticeMix-1024.png",
+          "name": "PracticeMix-1024",
+          "opacity": 1,
+          "position": {
+            "scale": 1.03,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.45
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.44
+      }
+    },
+    {
+      "blend-mode": "soft-light",
+      "blur-material": 0.48,
+      "layers": [],
+      "lighting": "individual",
+      "position": {
+        "scale": 1,
+        "translation-in-points": [
+          0,
+          12
+        ]
+      },
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.08
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.64
+      }
+    }
+  ],
+  "supported-platforms": {
+    "circles": [
+      "watchOS"
+    ],
+    "squares": "shared"
+  }
+}
