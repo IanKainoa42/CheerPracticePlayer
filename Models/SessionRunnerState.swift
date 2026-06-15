@@ -108,6 +108,7 @@ struct SessionRunnerState {
             currentRep = 1
             phase = .playing
         } else {
+            currentRep += 1
             phase = .complete
         }
     }
@@ -137,6 +138,7 @@ struct SessionRunnerState {
                     phase = postRestPhase(for: nextBlock)
                 }
             } else {
+                currentRep += 1
                 phase = .complete
             }
         }
