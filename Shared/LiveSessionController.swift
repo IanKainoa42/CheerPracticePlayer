@@ -17,6 +17,9 @@ final class LiveSessionController {
     private(set) var repsAttempted: [UUID: Int] = [:]
     /// Playback rate multiplier. Mirrors the engine's rate so the UI can observe it.
     private(set) var playbackRate: Float = 1.0
+    /// Current count number (1...8) during a beat-synced count-in, else nil.
+    /// Exposed for the Live readout.
+    private(set) var countInBeat: Int?
 
     static let availablePlaybackRates: [Float] = [0.7, 0.8, 0.9, 1.0, 1.05, 1.10]
 
@@ -25,6 +28,10 @@ final class LiveSessionController {
 
     private let audioPlayer: AudioPlaybackControlling
     private var countdownTimer: Timer?
+    /// Precise timers driving an in-progress beat-synced count-in (one per click
+    /// plus a finalize). Empty when no count-in is running.
+    private var beatTimers: [Timer] = []
+    private var beatCountInRunning = false
     private var sessionTimer: Timer?
     private(set) var playbackEndTimer: Timer?
     private var playheadTimer: Timer?
@@ -163,7 +170,9 @@ final class LiveSessionController {
             // timer from the preserved value; do NOT touch audio.
             isPaused = false
             audioStatus = phaseDescription
-            startCountdown()
+            // Re-evaluate: restart either the 1s countdown or the beat count-in
+            // (from the top) depending on whether this block is beat-synced.
+            startBreakCountdownAudio()
             startSessionTimer()
             keepScreenAwake(true)
             return
@@ -266,17 +275,7 @@ final class LiveSessionController {
         audioPlayer.pause()
         runner.beginBreak()
         audioStatus = phaseDescription
-        
-        // Handle immediate countdown/warning trigger when rest starts
-        if case .breakCountdown(let remaining) = runner.phase {
-            if remaining == 10 {
-                SoundEffectsPlayer.shared.playDoubleBeep()
-            } else if remaining <= PracticeBlock.countdownTailSeconds {
-                SoundEffectsPlayer.shared.playBeep()
-            }
-        }
-        
-        startCountdown()
+        startBreakCountdownAudio()
     }
 
     /// Tapping/scrubbing the timeline selects a block by index and starts playback from the
@@ -309,6 +308,15 @@ final class LiveSessionController {
     /// gesture during rest — gives the coach a warning instead of an instant cut.
     func skipBreakToCountdownTail() {
         guard case .breakCountdown(let remaining) = runner.phase else { return }
+
+        // Beat-synced blocks: the slide jumps straight into the musical count-in,
+        // and (as below) doubles as the manual "go".
+        if let plan = activeCountInPlan {
+            slideQueuedAutoStart = true
+            startBeatCountIn(plan)
+            return
+        }
+
         let tail = PracticeBlock.countdownTailSeconds
         // Already inside the warning tail — fall back to a full skip so the
         // user can still get out of the rest with a slide.
@@ -366,15 +374,7 @@ final class LiveSessionController {
         switch runner.phase {
         case .breakCountdown:
             audioStatus = phaseDescription
-            // Handle immediate countdown/warning trigger when rest starts
-            if case .breakCountdown(let remaining) = runner.phase {
-                if remaining == 10 {
-                    SoundEffectsPlayer.shared.playDoubleBeep()
-                } else if remaining <= PracticeBlock.countdownTailSeconds {
-                    SoundEffectsPlayer.shared.playBeep()
-                }
-            }
-            startCountdown()
+            startBreakCountdownAudio()
 
         case .playing:
             // No rest needed — play next rep immediately
@@ -434,17 +434,24 @@ final class LiveSessionController {
     }
 
     private func tickCountdown() {
+        // Hand off to the beat-synced count-in once the rest reaches the lead-in
+        // window. The 1s countdown owns the long rest; the beat scheduler owns
+        // the final musical count-in and the audio resume.
+        if !beatCountInRunning,
+           let plan = activeCountInPlan,
+           case .breakCountdown(let remaining) = runner.phase,
+           remaining <= Int(ceil(plan.totalDuration)) {
+            startBeatCountIn(plan)
+            return
+        }
+
         let shouldContinue = runner.tickCountdown()
         audioStatus = phaseDescription
 
         if shouldContinue {
-            // Play beeps on countdown ticks
-            if case .breakCountdown(let remaining) = runner.phase {
-                if remaining == 10 {
-                    SoundEffectsPlayer.shared.playDoubleBeep()
-                } else if remaining <= PracticeBlock.countdownTailSeconds {
-                    SoundEffectsPlayer.shared.playBeep()
-                }
+            // Legacy second-by-second beeps — only when this block is NOT beat-synced.
+            if activeCountInPlan == nil, case .breakCountdown(let remaining) = runner.phase {
+                playLegacyBreakBeep(remaining: remaining)
             }
         }
 
@@ -477,6 +484,108 @@ final class LiveSessionController {
     private func stopCountdown() {
         countdownTimer?.invalidate()
         countdownTimer = nil
+        cancelBeatCountIn()
+    }
+
+    // MARK: - Beat-Synced Count-In
+
+    /// The count-in plan for the current block, or nil when beat-sync doesn't
+    /// apply (no analyzed beat map, or the block disables the lead-in). When nil,
+    /// the controller uses the legacy second-by-second countdown everywhere.
+    private var activeCountInPlan: CountInPlan? {
+        guard let block = runner.currentBlock,
+              block.leadInEightCounts > 0,
+              let beatMap = session.mix?.beatMap, !beatMap.isEmpty else { return nil }
+        return CountInPlan.make(
+            beatMap: beatMap,
+            targetTime: block.section.startTime,
+            eightCounts: block.leadInEightCounts,
+            accent: block.countInAccent
+        )
+    }
+
+    /// Starts the appropriate audio for an active break countdown: the beat-synced
+    /// count-in if we're already inside the lead-in window, otherwise the 1s
+    /// countdown (legacy beeps fire only when the block isn't beat-synced).
+    private func startBreakCountdownAudio() {
+        guard case .breakCountdown(let remaining) = runner.phase else { return }
+        if let plan = activeCountInPlan, remaining <= Int(ceil(plan.totalDuration)) {
+            startBeatCountIn(plan)
+            return
+        }
+        if activeCountInPlan == nil {
+            playLegacyBreakBeep(remaining: remaining)
+        }
+        startCountdown()
+    }
+
+    private func playLegacyBreakBeep(remaining: Int) {
+        if remaining == 10 {
+            SoundEffectsPlayer.shared.playDoubleBeep()
+        } else if remaining <= PracticeBlock.countdownTailSeconds {
+            SoundEffectsPlayer.shared.playBeep()
+        }
+    }
+
+    /// Schedules the count-in clicks and the audio resume. The runner is left in
+    /// `.breakCountdown` until the count-in finishes, at which point it is drained
+    /// to its terminal phase — the runner state machine itself is untouched.
+    private func startBeatCountIn(_ plan: CountInPlan) {
+        stopCountdown() // clears the 1s timer and any prior beat timers
+        guard let block = runner.currentBlock else { finishBeatCountIn(); return }
+        beatCountInRunning = true
+        countInBeat = nil
+        let sound = block.countInSound
+
+        for click in plan.clicks {
+            let timer = makeCommonModeTimer(after: max(click.offset, 0.0001)) { [weak self] in
+                guard let self else { return }
+                SoundEffectsPlayer.shared.playCountInTick(accent: click.isAccent, sound: sound)
+                self.countInBeat = click.beatNumber
+                self.audioStatus = "Count in: \(click.beatNumber)"
+            }
+            beatTimers.append(timer)
+        }
+
+        let finalize = makeCommonModeTimer(after: plan.totalDuration) { [weak self] in
+            self?.finishBeatCountIn()
+        }
+        beatTimers.append(finalize)
+    }
+
+    private func cancelBeatCountIn() {
+        beatTimers.forEach { $0.invalidate() }
+        beatTimers.removeAll()
+        beatCountInRunning = false
+        countInBeat = nil
+    }
+
+    /// Count-in finished: drain the runner's remaining rest to its terminal phase
+    /// (playing / manual wait) and start the next rep — mirroring the resolution
+    /// the 1s countdown performs when it reaches zero.
+    private func finishBeatCountIn() {
+        cancelBeatCountIn()
+        // Drain the rest without side effects; the final tick sets the post-rest phase.
+        while runner.tickCountdown() {}
+        audioStatus = phaseDescription
+
+        switch runner.phase {
+        case .playing:
+            guard prepareCurrentBlockForPlayback() else { return }
+            playCurrentSection()
+        case .waitingForManualStart:
+            if slideQueuedAutoStart {
+                slideQueuedAutoStart = false
+                runner.startFromManualWait()
+                guard prepareCurrentBlockForPlayback() else { return }
+                playCurrentSection()
+            } else {
+                audioPlayer.pause()
+                stopPlayheadTimer()
+            }
+        case .idle, .breakCountdown, .complete:
+            break
+        }
     }
 
     // MARK: - Session Timer
@@ -518,22 +627,29 @@ final class LiveSessionController {
 
     private func playCurrentSection() {
         guard let block = runner.currentBlock else { return }
+        beginPlayback(from: block.section.startTime)
+    }
+
+    /// Plays the current section from `start` through its end, arming the playhead
+    /// and auto-advance timers. Shared by normal rep playback and `rewind(by:)` so
+    /// a rewind re-arms the exact same well-tested segment/seek/auto-stop path.
+    private func beginPlayback(from start: TimeInterval) {
+        guard let block = runner.currentBlock else { return }
         cancelPlaybackEnd()
 
-        let sectionDuration = block.section.duration
-        guard sectionDuration > 0.01 else {
+        let endTime = block.section.endTime
+        let clampedStart = min(max(start, block.section.startTime), endTime)
+        let remaining = endTime - clampedStart
+        guard remaining > 0.01 else {
             onSectionPlaybackFinished()
             return
         }
 
-        currentSegmentEndTime = block.section.endTime
+        currentSegmentEndTime = endTime
         isPaused = false
 
         audioPlayer.rate = playbackRate
-        audioPlayer.playSegment(
-            startTime: block.section.startTime,
-            endTime: block.section.endTime
-        )
+        audioPlayer.playSegment(startTime: clampedStart, endTime: endTime)
         audioStatus = "Playing \(block.section.displayName) — Rep \(runner.currentRep)/\(block.reps)"
         startPlayheadTimer()
 
@@ -541,13 +657,58 @@ final class LiveSessionController {
         // starts up to 0.5s early for the pre-roll fade-in, so match its actual
         // run time — otherwise the rest countdown kicks in while audio is still
         // playing the final half-second.
-        let preRoll = min(block.section.startTime, AudioPlaybackEngine.preRollFadeSeconds)
-        let realDelay = (sectionDuration + preRoll) / Double(max(playbackRate, 0.01))
+        let preRoll = min(clampedStart, AudioPlaybackEngine.preRollFadeSeconds)
+        let realDelay = (remaining + preRoll) / Double(max(playbackRate, 0.01))
         if realDelay > 0 {
             playbackEndTimer = makeCommonModeTimer(after: realDelay) { [weak self] in
                 self?.onSectionPlaybackFinished()
             }
         }
+    }
+
+    /// Jump to an absolute `time` inside the current section (e.g. tapping the
+    /// global timeline within the active section). Clamps to the section range.
+    /// Playing → re-arms playback from there; paused → seeks (picked up on resume);
+    /// otherwise makes this the live section and starts from the tapped point.
+    func jumpWithinCurrentSection(to time: TimeInterval) {
+        guard let block = runner.currentBlock else { return }
+        let clamped = min(max(time, block.section.startTime), block.section.endTime)
+
+        if isPaused {
+            audioPlayer.seek(to: clamped)
+            currentPlaybackTime = clamped
+            return
+        }
+
+        if case .playing = runner.phase {
+            beginPlayback(from: clamped)
+            return
+        }
+
+        // Idle / rest / manual-wait / complete: promote this section to live and
+        // start from the tapped point.
+        stopCountdown()
+        slideQueuedAutoStart = false
+        runner.restartBlock()
+        guard prepareCurrentBlockForPlayback() else { return }
+        beginPlayback(from: clamped)
+        startSessionTimer()
+        keepScreenAwake(true)
+    }
+
+    /// Rewind within the current section by `seconds`, clamped to the section
+    /// start. Coach ergonomic: "they didn't hit it — run it back a beat." Works
+    /// whether playing (re-arms playback) or paused (the seek is picked up on resume).
+    func rewind(by seconds: TimeInterval = 5) {
+        guard case .playing = runner.phase, let block = runner.currentBlock else { return }
+        if isPaused {
+            let target = max(currentPlaybackTime - seconds, block.section.startTime)
+            audioPlayer.seek(to: target)
+            currentPlaybackTime = target
+            return
+        }
+        let target = max(audioPlayer.currentTime - seconds, block.section.startTime)
+        beginPlayback(from: target)
     }
 
     private func cancelPlaybackEnd() {

@@ -117,7 +117,8 @@ struct LiveRunView: View {
                     currentTime: controller.currentPlaybackTime,
                     blocks: controller.session.blocks,
                     activeBlockIndex: controller.runner.currentBlockIndex,
-                    onSelectBlock: { controller.selectBlock(at: $0) }
+                    onSelectBlock: { controller.selectBlock(at: $0) },
+                    onSeekWithinActive: { controller.jumpWithinCurrentSection(to: $0) }
                 )
             }
 
@@ -196,12 +197,55 @@ struct LiveRunView: View {
                     controller.skipBreakToCountdownTail()
                 }
                 .transition(.opacity)
+            } else if controller.runner.phase == .playing {
+                // Playing (or paused mid-section): live transport — rewind a beat
+                // or skip the whole current section without waiting it out.
+                transportControls
+                    .transition(.opacity)
             }
         }
         // Match SlideToSkipRest's thumbSize (44) so the slot is exactly its height.
         .frame(height: 44)
         .animation(.easeInOut(duration: 0.2), value: controller.runner.phase)
         .animation(.easeInOut(duration: 0.2), value: controller.isPaused)
+    }
+
+    /// Live transport controls shown under the cue card during playback. Rewind
+    /// runs the section back 5s (clamped to its start); Skip Section jumps to the
+    /// next section immediately.
+    private var transportControls: some View {
+        HStack(spacing: 10) {
+            transportButton(icon: "gobackward.5", label: "REWIND 5s", tint: PPColors.textPrimary) {
+                controller.rewind(by: 5)
+            }
+            transportButton(icon: "forward.end.fill", label: "SKIP SECTION", tint: PPColors.accentOrange) {
+                controller.skipBlock()
+            }
+        }
+    }
+
+    private func transportButton(
+        icon: String,
+        label: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .bold))
+                Text(label)
+                    .font(PPFonts.caption(10))
+                    .tracking(1.2)
+            }
+            .foregroundStyle(tint)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 11)
+            .background(Capsule().fill(PPColors.card))
+            .overlay(Capsule().strokeBorder(tint.opacity(0.5), lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Cue Status Card
@@ -708,11 +752,21 @@ private struct GlobalTimelineStripView: View {
     let blocks: [PracticeBlock]
     let activeBlockIndex: Int
     let onSelectBlock: (Int) -> Void
+    /// Called when the tap lands inside the active section — passes the absolute
+    /// time so the live run can seek to that exact point instead of restarting.
+    let onSeekWithinActive: (TimeInterval) -> Void
 
     @State private var hoverBlockIndex: Int?
 
     private var activeBlock: PracticeBlock? {
         blocks.indices.contains(activeBlockIndex) ? blocks[activeBlockIndex] : nil
+    }
+
+    /// Absolute mix time for an x position in the strip.
+    private func time(at x: CGFloat, totalWidth: CGFloat) -> TimeInterval {
+        guard totalWidth > 0, mixDuration > 0 else { return 0 }
+        let frac = max(0, min(Double(x / totalWidth), 1))
+        return frac * mixDuration
     }
 
     /// Resolve a tap/drag x-position to a block index — either the block whose section
@@ -843,7 +897,13 @@ private struct GlobalTimelineStripView: View {
                             hoverBlockIndex = resolveBlock(at: value.location.x, totalWidth: totalWidth)
                         }
                         .onEnded { value in
-                            if let index = resolveBlock(at: value.location.x, totalWidth: totalWidth) {
+                            let t = time(at: value.location.x, totalWidth: totalWidth)
+                            // Tap inside the section you're already in → seek to that
+                            // exact point. Tap elsewhere → jump to that block's start.
+                            if let active = activeBlock,
+                               t >= active.section.startTime, t < active.section.endTime {
+                                onSeekWithinActive(t)
+                            } else if let index = resolveBlock(at: value.location.x, totalWidth: totalWidth) {
                                 onSelectBlock(index)
                             }
                             hoverBlockIndex = nil

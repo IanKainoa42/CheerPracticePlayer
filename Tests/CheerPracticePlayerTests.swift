@@ -814,6 +814,191 @@ final class CheerPracticePlayerTests: XCTestCase {
         XCTAssertEqual(dataHeader, "data", "Header must contain data subchunk ID")
     }
 
+    // MARK: - Live transport (rewind / skip section)
+
+    func testRewind_SeeksBackwardWithinSection_ReissuesPlayback() {
+        let session = makeBattleSession(reps: 2) // block 0 section starts at 10
+        let audio = FakeAudioPlayer()
+        let controller = LiveSessionController(session: session, audioPlayer: audio)
+        controller.playCurrentBlock()
+
+        let start = session.blocks[0].section.startTime
+        audio.currentTime = start + 4
+        let playsBefore = audio.playCallCount
+
+        controller.rewind(by: 3)
+
+        XCTAssertEqual(audio.seekTimes.last ?? -1, start + 1, accuracy: 0.001,
+                       "Rewind should re-arm playback 3s earlier")
+        XCTAssertEqual(audio.playCallCount, playsBefore + 1,
+                       "Rewind re-issues playback exactly once")
+    }
+
+    func testRewind_ClampsToSectionStart() {
+        let session = makeBattleSession(reps: 2)
+        let audio = FakeAudioPlayer()
+        let controller = LiveSessionController(session: session, audioPlayer: audio)
+        controller.playCurrentBlock()
+
+        let start = session.blocks[0].section.startTime
+        audio.currentTime = start + 2
+        controller.rewind(by: 10) // would land before the section start
+
+        XCTAssertEqual(audio.seekTimes.last ?? -1, start, accuracy: 0.001,
+                       "Rewind must clamp to the section start, never before it")
+    }
+
+    func testRewind_NoOpWhenNotPlaying() {
+        let session = makeBattleSession(reps: 2)
+        let audio = FakeAudioPlayer()
+        let controller = LiveSessionController(session: session, audioPlayer: audio)
+        // Idle — never started.
+        let playsBefore = audio.playCallCount
+        controller.rewind(by: 5)
+        XCTAssertEqual(audio.playCallCount, playsBefore, "Rewind while idle must do nothing")
+    }
+
+    func testJumpWithinCurrentSection_SeeksToTappedTimeWhilePlaying() {
+        let session = makeBattleSession(reps: 2) // block 0: section [10, 18]
+        let audio = FakeAudioPlayer()
+        let controller = LiveSessionController(session: session, audioPlayer: audio)
+        controller.playCurrentBlock()
+
+        let playsBefore = audio.playCallCount
+        controller.jumpWithinCurrentSection(to: 14)
+
+        XCTAssertEqual(audio.seekTimes.last ?? -1, 14, accuracy: 0.001,
+                       "Tapping inside the active section seeks to that exact time")
+        XCTAssertEqual(audio.playCallCount, playsBefore + 1)
+    }
+
+    func testJumpWithinCurrentSection_ClampsToSectionStart() {
+        let session = makeBattleSession(reps: 2) // section [10, 18]
+        let audio = FakeAudioPlayer()
+        let controller = LiveSessionController(session: session, audioPlayer: audio)
+        controller.playCurrentBlock()
+
+        controller.jumpWithinCurrentSection(to: 3) // before the start
+        XCTAssertEqual(audio.seekTimes.last ?? -1,
+                       session.blocks[0].section.startTime, accuracy: 0.001,
+                       "Jump clamps up to the section start, never before it")
+    }
+
+    // MARK: - BeatMap math
+
+    /// Uniform 120 BPM grid: beats every 0.5s, bars (4/4) every 2.0s.
+    private func uniformBeatMap(beats: Int = 64, bpm: Double = 120) -> BeatMap {
+        let interval = 60.0 / bpm
+        let beatTimes = (0..<beats).map { Double($0) * interval }
+        let barTimes = stride(from: 0, to: beats, by: 4).map { Double($0) * interval }
+        return BeatMap(bpm: bpm, beatTimes: beatTimes, barTimes: barTimes)
+    }
+
+    func testBeatMap_EightCount_CountsAndBeatsFromDownbeatAnchor() {
+        let map = uniformBeatMap()
+
+        // Beat 0 → 8-count 1, beat 1.
+        XCTAssertEqual(map.eightCount(at: 0.0)?.count, 1)
+        XCTAssertEqual(map.eightCount(at: 0.0)?.beat, 1)
+        // Beat index 4 (t=2.0) → still 8-count 1, beat 5.
+        XCTAssertEqual(map.eightCount(at: 2.0)?.count, 1)
+        XCTAssertEqual(map.eightCount(at: 2.0)?.beat, 5)
+        // Beat index 8 (t=4.0) → 8-count 2, beat 1.
+        XCTAssertEqual(map.eightCount(at: 4.0)?.count, 2)
+        XCTAssertEqual(map.eightCount(at: 4.0)?.beat, 1)
+    }
+
+    func testBeatMap_NearestSnapping_BeatBarEightCount() {
+        let map = uniformBeatMap()
+        XCTAssertEqual(map.nearestBeatTime(to: 3.1) ?? -1, 3.0, accuracy: 0.0001)
+        XCTAssertEqual(map.nearestBarTime(to: 3.1) ?? -1, 4.0, accuracy: 0.0001)
+        XCTAssertEqual(map.nearestEightCountTime(to: 3.1) ?? -1, 4.0, accuracy: 0.0001)
+    }
+
+    func testBeatMap_EmptyMap_ReturnsNilLookups() {
+        let empty = BeatMap(bpm: 0, beatTimes: [], barTimes: [])
+        XCTAssertTrue(empty.isEmpty)
+        XCTAssertNil(empty.eightCount(at: 1.0))
+        XCTAssertNil(empty.nearestBeatTime(to: 1.0))
+    }
+
+    // MARK: - CountInPlan
+
+    func testCountInPlan_OneEightCount_HalfBarAccentsOnBeat1And5() {
+        let map = uniformBeatMap()
+        guard let plan = CountInPlan.make(beatMap: map, targetTime: 4.0, eightCounts: 1, accent: .halfBar) else {
+            return XCTFail("Plan should build on a populated beat map")
+        }
+
+        XCTAssertEqual(plan.clicks.count, 8)
+        XCTAssertEqual(plan.interval, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(plan.totalDuration, 4.0, accuracy: 0.0001)
+        // Offsets are evenly spaced beats: 0, 0.5, ... 3.5.
+        XCTAssertEqual(plan.clicks.first?.offset ?? -1, 0.0, accuracy: 0.0001)
+        XCTAssertEqual(plan.clicks.last?.offset ?? -1, 3.5, accuracy: 0.0001)
+        // Accents on count 1 (index 0) and count 5 (index 4) only.
+        let accented = plan.clicks.enumerated().filter { $0.element.isAccent }.map { $0.offset }
+        XCTAssertEqual(accented, [0, 4])
+    }
+
+    func testCountInPlan_TwoEightCounts_HasSixteenClicks() {
+        let map = uniformBeatMap()
+        let plan = CountInPlan.make(beatMap: map, targetTime: 8.0, eightCounts: 2, accent: .downbeat)
+        XCTAssertEqual(plan?.clicks.count, 16)
+        // Downbeat accent: only beats 1 and 9 (the two count-1s).
+        let accentCount = plan?.clicks.filter { $0.isAccent }.count
+        XCTAssertEqual(accentCount, 2)
+    }
+
+    func testCountInPlan_EmptyMapOrZeroEightCounts_ReturnsNil() {
+        let empty = BeatMap(bpm: 0, beatTimes: [], barTimes: [])
+        XCTAssertNil(CountInPlan.make(beatMap: empty, targetTime: 4, eightCounts: 1, accent: .halfBar))
+        let map = uniformBeatMap()
+        XCTAssertNil(CountInPlan.make(beatMap: map, targetTime: 4, eightCounts: 0, accent: .halfBar))
+    }
+
+    // MARK: - PracticeBlock backward compatibility
+
+    func testPracticeBlock_DecodesLegacyJSONWithoutCountInKeys_AsDefaults() {
+        let legacyJSON = """
+        {
+          "id": "\(UUID().uuidString)",
+          "title": "Legacy",
+          "section": {
+            "id": "\(UUID().uuidString)",
+            "name": "Tumble",
+            "type": "runningTumbling",
+            "startTime": 10,
+            "endTime": 18
+          },
+          "reps": 5,
+          "restSeconds": 30,
+          "restartMode": "automatic"
+        }
+        """.data(using: .utf8)!
+
+        do {
+            let block = try JSONDecoder().decode(PracticeBlock.self, from: legacyJSON)
+            XCTAssertEqual(block.leadInEightCounts, 1, "Missing lead-in must default to 1 eight-count")
+            XCTAssertEqual(block.countInSound, .click)
+            XCTAssertEqual(block.countInAccent, .halfBar)
+        } catch {
+            XCTFail("Legacy PracticeBlock JSON failed to decode: \(error)")
+        }
+    }
+
+    func testImportedMix_DecodesLegacyJSONWithoutBeatMap_AsNil() {
+        let legacyJSON = """
+        { "id": "\(UUID().uuidString)", "originalFileName": "a.m4a", "fileName": "a.m4a", "duration": 90 }
+        """.data(using: .utf8)!
+        do {
+            let mix = try JSONDecoder().decode(ImportedMix.self, from: legacyJSON)
+            XCTAssertNil(mix.beatMap, "Missing beatMap key must decode to nil")
+        } catch {
+            XCTFail("Legacy ImportedMix JSON failed to decode: \(error)")
+        }
+    }
+
     private func cleanupTestArtifacts(near url: URL) {
         let dir = url.deletingLastPathComponent()
         let basename = url.lastPathComponent

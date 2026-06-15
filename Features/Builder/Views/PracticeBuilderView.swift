@@ -553,7 +553,10 @@ struct PracticeBuilderView: View {
                         section: added.clamped(to: session.mixDuration),
                         reps: src.reps,
                         restSeconds: src.restSeconds,
-                        restartMode: src.restartMode
+                        restartMode: src.restartMode,
+                        leadInEightCounts: src.leadInEightCounts,
+                        countInSound: src.countInSound,
+                        countInAccent: src.countInAccent
                     )
                 )
             } else {
@@ -644,6 +647,7 @@ private struct ProgramSectionCard: View {
             previewControl
             stepperTrio
             restartPicker
+            countInPicker
             estimatedDuration
         }
         .padding(18)
@@ -850,6 +854,70 @@ private struct ProgramSectionCard: View {
             }
         }
         .pickerStyle(.segmented)
+    }
+
+    private var countInPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Count-In", systemImage: "metronome")
+                .font(PPFonts.caption(11))
+                .tracking(1.2)
+                .foregroundStyle(PPColors.textTertiary)
+
+            Picker(
+                "Lead-in length",
+                selection: Binding(
+                    get: { block.leadInEightCounts },
+                    set: { newVal in
+                        var u = block
+                        u.leadInEightCounts = newVal
+                        onBlockChange(u)
+                    }
+                )
+            ) {
+                Text("Off").tag(0)
+                Text("1×8").tag(1)
+                Text("2×8").tag(2)
+            }
+            .pickerStyle(.segmented)
+
+            if block.leadInEightCounts > 0 {
+                HStack(spacing: 10) {
+                    Picker(
+                        "Sound",
+                        selection: Binding(
+                            get: { block.countInSound },
+                            set: { newVal in
+                                var u = block
+                                u.countInSound = newVal
+                                onBlockChange(u)
+                            }
+                        )
+                    ) {
+                        ForEach(CountInSound.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker(
+                        "Accent",
+                        selection: Binding(
+                            get: { block.countInAccent },
+                            set: { newVal in
+                                var u = block
+                                u.countInAccent = newVal
+                                onBlockChange(u)
+                            }
+                        )
+                    ) {
+                        ForEach(CountInAccent.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Text("Clicks lock to the beat when the mix is analyzed (iOS 27+); otherwise the last 5s count down.")
+                    .font(PPFonts.caption(10))
+                    .foregroundStyle(PPColors.textTertiary)
+            }
+        }
     }
 
     private var estimatedDuration: some View {

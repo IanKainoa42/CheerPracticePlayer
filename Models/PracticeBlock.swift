@@ -38,8 +38,54 @@ struct PracticeBlock: Identifiable, Hashable, Codable {
     var restSeconds: Int
     var restartMode: RestartMode
 
+    /// Length of the beat-synced count-in, in cheer 8-counts. 0 disables it.
+    /// Only takes effect when the mix has a `BeatMap`; otherwise the legacy
+    /// `countdownTailSeconds` second-by-second countdown is used.
+    var leadInEightCounts: Int
+    /// Timbre for the count-in accent.
+    var countInSound: CountInSound
+    /// Where the count-in accent falls.
+    var countInAccent: CountInAccent
+
     /// How many of the final seconds of `restSeconds` are surfaced as the "get ready" countdown.
     static let countdownTailSeconds: Int = 5
+
+    init(
+        id: UUID,
+        title: String,
+        section: PracticeSection,
+        reps: Int,
+        restSeconds: Int,
+        restartMode: RestartMode,
+        leadInEightCounts: Int = 1,
+        countInSound: CountInSound = .click,
+        countInAccent: CountInAccent = .halfBar
+    ) {
+        self.id = id
+        self.title = title
+        self.section = section
+        self.reps = reps
+        self.restSeconds = restSeconds
+        self.restartMode = restartMode
+        self.leadInEightCounts = leadInEightCounts
+        self.countInSound = countInSound
+        self.countInAccent = countInAccent
+    }
+
+    // Custom decode so libraries saved before the count-in config existed still
+    // load — the new keys default instead of throwing on a missing key.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.title = try c.decode(String.self, forKey: .title)
+        self.section = try c.decode(PracticeSection.self, forKey: .section)
+        self.reps = try c.decode(Int.self, forKey: .reps)
+        self.restSeconds = try c.decode(Int.self, forKey: .restSeconds)
+        self.restartMode = try c.decode(RestartMode.self, forKey: .restartMode)
+        self.leadInEightCounts = (try? c.decode(Int.self, forKey: .leadInEightCounts)) ?? 1
+        self.countInSound = (try? c.decode(CountInSound.self, forKey: .countInSound)) ?? .click
+        self.countInAccent = (try? c.decode(CountInAccent.self, forKey: .countInAccent)) ?? .halfBar
+    }
 
     var estimatedDuration: TimeInterval {
         let repCount = max(reps, 0)

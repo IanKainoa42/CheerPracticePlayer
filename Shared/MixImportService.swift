@@ -45,11 +45,17 @@ struct MixImportService {
             throw MixImportError.invalidDuration
         }
 
+        // Analyze rhythm on-device while we're already async. No-op (nil) on
+        // pre-iOS-27 toolchains; the import still succeeds and beat-sync simply
+        // falls back to wall-clock timing.
+        let beatMap = await BeatMapService.analyze(url: destinationURL)
+
         return ImportedMix(
             id: UUID(),
             originalFileName: sourceURL.lastPathComponent,
             fileName: destinationURL.lastPathComponent,
-            duration: duration
+            duration: duration,
+            beatMap: beatMap
         )
     }
 
