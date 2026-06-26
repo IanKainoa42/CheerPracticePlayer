@@ -4,8 +4,9 @@
 # OpenSSL — "invalid curve name" parsing the ASC P-256 key).
 #
 # Prereqs: ASC API key .p8 at ~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8
-# CURRENT_PROJECT_VERSION in project.yml MUST be > any existing TestFlight build
-# for the same MARKETING_VERSION.
+# Build number is auto-managed: ExportOptions sets manageAppVersionAndBuildNumber,
+# so export stamps (ASC max)+1. CURRENT_PROJECT_VERSION in project.yml is ignored
+# for the build number — no need to hand-bump it before shipping.
 
 set -euo pipefail
 
@@ -41,6 +42,7 @@ cat > "$EXPORT_OPTS" <<EOF
   <key>signingStyle</key><string>automatic</string>
   <key>stripSwiftSymbols</key><true/>
   <key>uploadSymbols</key><true/>
+  <key>manageAppVersionAndBuildNumber</key><true/>
 </dict>
 </plist>
 EOF
@@ -61,11 +63,18 @@ if [ ! -d "$ARCHIVE" ]; then
 fi
 
 echo "== Exporting .ipa =="
+# Auth args required: manageAppVersionAndBuildNumber makes export query ASC for
+# the latest build and stamp (max+1), so it needs the ASC API key at export time
+# (not just at upload). xcodebuild auto-discovers AuthKey_<id>.p8 in
+# ~/.appstoreconnect/private_keys/.
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
   -exportOptionsPlist "$EXPORT_OPTS" \
   -exportPath "$EXPORT_DIR" \
   -allowProvisioningUpdates \
+  -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_$API_KEY_ID.p8" \
+  -authenticationKeyID "$API_KEY_ID" \
+  -authenticationKeyIssuerID "$API_ISSUER" \
   | grep -E '^\*\*|error:|warning:' || true
 
 IPA=$(find "$EXPORT_DIR" -name "*.ipa" | head -1)
