@@ -22,14 +22,14 @@ enum MusicUnderstandingAnalyzer {
     static func analyze(url: URL) async -> BeatMap? {
         let asset = AVURLAsset(url: url)
         do {
-            let session = MusicUnderstandingSession(asset: asset)
-            let result = try await session.analyze([.rhythm])
+            let session = try await MusicUnderstandingSession(asset: asset)
+            let result = try await session.analyze(for: [.rhythm])
             guard let rhythm = result.rhythm else { return nil }
             let beats = rhythm.beats.map { $0.seconds }.filter { $0.isFinite }
             let bars = rhythm.bars.map { $0.seconds }.filter { $0.isFinite }
-            guard !beats.isEmpty else { return nil }
+            guard !beats.isEmpty, let bpm = rhythm.beatsPerMinute else { return nil }
             return BeatMap(
-                bpm: rhythm.beatsPerMinute,
+                bpm: Double(bpm),
                 beatTimes: beats.sorted(),
                 barTimes: bars.sorted()
             )
